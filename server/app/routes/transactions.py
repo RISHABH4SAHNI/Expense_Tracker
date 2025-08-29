@@ -35,31 +35,15 @@ def set_redis_client(client):
 
 async def enqueue_categorize(tx_id: str) -> bool:
     """
-    Enqueue transaction categorization job to Redis
+    Enqueue transaction categorization job using RQ
     Args:
         tx_id: Transaction ID to categorize
     Returns:
         bool: True if successfully enqueued, False otherwise
     """
-    try:
-        if not redis_client:
-            logger.warning(f"Redis not available, skipping categorization for tx: {tx_id}")
-            return False
-
-        job_data = {
-            "transaction_id": tx_id,
-            "job_type": "categorize_transaction",
-            "created_at": datetime.utcnow().isoformat()
-        }
-
-        # Add to Redis list for worker processing
-        await redis_client.lpush("categorization_jobs", json.dumps(job_data))
-        logger.info(f"✅ Enqueued categorization job for transaction: {tx_id}")
-        return True
-
-    except Exception as e:
-        logger.error(f"❌ Failed to enqueue categorization job for {tx_id}: {e}")
-        return False
+    # Use RQ helper function
+    from app.utils.enqueue_categorize import enqueue_categorize as rq_enqueue
+    return rq_enqueue(tx_id)
 
 @router.post("/link-account")
 async def link_account(user_id: str):
