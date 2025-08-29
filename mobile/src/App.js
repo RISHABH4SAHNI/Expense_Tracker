@@ -1,0 +1,1 @@
+// Main React Native App component

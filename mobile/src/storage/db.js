@@ -1,0 +1,1 @@
+// SQLite wrapper (expo-sqlite + secure storage)
