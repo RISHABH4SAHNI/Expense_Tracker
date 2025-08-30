@@ -46,15 +46,97 @@ const HomeScreen = () => {
     }
   };
 
+  // Transform local transactions to backend format
+  const transformTransactionsForSync = (localTransactions) => {
+    console.log('🔄 Transforming transactions:', localTransactions.slice(0, 2)); // Log first 2 for debugging
+    return localTransactions.map(transaction => {
+      // Generate a unique ID if not present
+      const transactionId = transaction.transaction_id || 
+                           transaction.id?.toString() || 
+                           `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Convert local format to backend format
+      return {
+        id: transactionId,
+        ts: transaction.date ? new Date(transaction.date).toISOString() : new Date().toISOString(),
+        amount: Math.abs(parseFloat(transaction.amount) || 0),
+        type: transaction.type === 'income' ? 'credit' : 'debit',
+        raw_desc: transaction.description || transaction.merchant || 'Local transaction',
+        account_id: transaction.account_id || 'local_account_001'
+      };
+    }).filter(transaction => {
+      const isValid = transaction.amount > 0 && transaction.raw_desc && transaction.id;
+      if (!isValid) {
+        console.warn('⚠️ Filtering out invalid transaction:', transaction);
+      }
+      return isValid;
+    });
+  };
+
   const handleSync = async () => {
     try {
       setSyncing(true);
-      await syncTransactions();
-      await loadTransactionSummary(); // Refresh data after sync
-      Alert.alert('Success', 'Transactions synced successfully');
+
+      console.log('📱 Starting sync process...');
+
+      // Get local transactions from storage
+      const localTransactions = await getTransactions();
+      console.log(`📊 Found ${localTransactions.length} local transactions`);
+
+      if (localTransactions.length === 0) {
+        Alert.alert(
+          'No Data to Sync', 
+          'There are no local transactions to sync with the server.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Transform transactions to backend format
+      const transformedTransactions = transformTransactionsForSync(localTransactions);
+      console.log(`🔄 Transformed ${transformedTransactions.length} transactions for sync`);
+
+      if (transformedTransactions.length === 0) {
+        Alert.alert(
+          'No Valid Data', 
+          'No valid transactions found to sync. Please check your transaction data.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Sync with server
+      console.log('📤 Sending transactions to server:', {
+        count: transformedTransactions.length,
+        sample: transformedTransactions[0] // Log first transaction structure
+      });
+
+      const syncResult = await syncTransactions(transformedTransactions);
+      console.log('✅ Sync completed:', syncResult);
+
+      // Show success message with details
+      Alert.alert(
+        'Sync Successful', 
+        `Synced ${syncResult.inserted_count || 0} new transactions and updated ${syncResult.updated_count || 0} existing transactions.`
+      );
+      // Refresh local data
+      await loadTransactionSummary();
     } catch (error) {
       console.error('Error syncing transactions:', error);
-      Alert.alert('Error', 'Failed to sync transactions');
+
+      // Show more helpful error messages
+      let errorMessage = 'Failed to sync transactions';
+      if (error.message.includes('localTransactions')) {
+        errorMessage = 'No valid transaction data found to sync';
+      } else if (error.message.includes('Authentication required')) {
+        errorMessage = 'Authentication required. Please log in again.';
+      } else if (error.message.includes('Network')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Sync Failed', errorMessage);
     } finally {
       setSyncing(false);
     }

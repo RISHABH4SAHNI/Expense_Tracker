@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
     global db_pool, redis_client
 
     # Startup
-    database_url = os.getenv("DATABASE_URL", "postgresql://expenseuser:expensepass@localhost:5432/expensedb")
+    database_url = os.getenv("DATABASE_URL", "postgresql://expenseuser:expensepass@localhost:5433/expensedb")
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # Try to connect to PostgreSQL (optional for development)

@@ -1,1 +1,32 @@
-# Docker compose configuration for PostgreSQL, Redis, and other services
+services:
+  postgres:
+    image: postgres:15
+    container_name: expense_postgres
+    environment:
+      POSTGRES_DB: expensedb
+      POSTGRES_USER: expenseuser
+      POSTGRES_PASSWORD: expensepass
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expenseuser -d expensedb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: expense_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  postgres_data:
+  redis_data:

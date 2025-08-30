@@ -2,6 +2,13 @@
 
 Mobile-first personal finance app with AI-powered transaction parsing and Q&A capabilities.
 
+cd /Users/rishabh.sahni/Desktop/Expense_Tracker/server
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+cd /Users/rishabh.sahni/Desktop/Expense_Tracker/mobile && npx expo start
+
+
+
 ## Architecture
 
 - **Frontend**: React Native (Expo) with local SQLite storage
