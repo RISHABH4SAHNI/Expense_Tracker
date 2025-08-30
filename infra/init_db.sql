@@ -18,6 +18,39 @@ CREATE TYPE transaction_category AS ENUM (
     'investment', 'other'
 );
 
+-- Create users table for authentication
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    -- Account Aggregator integration fields
+    refresh_token_hash VARCHAR(255),
+    aa_consent_token VARCHAR(255),
+    aa_account_id VARCHAR(255)
+);
+
+-- Create session_tokens table for JWT management
+CREATE TABLE IF NOT EXISTS session_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_id VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for users table
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+
+-- Create indexes for session_tokens table
+CREATE INDEX IF NOT EXISTS idx_session_tokens_user_expires ON session_tokens(user_id, expires_at);
+CREATE INDEX IF NOT EXISTS idx_session_tokens_token_id ON session_tokens(token_id);
+CREATE INDEX IF NOT EXISTS idx_session_tokens_expires_at ON session_tokens(expires_at);
+);
+
 -- Create accounts table
 CREATE TABLE IF NOT EXISTS accounts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -35,6 +68,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 -- Create transactions table
 CREATE TABLE IF NOT EXISTS transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
 
     -- Raw transaction data from bank API
     bank_transaction_id VARCHAR(255) UNIQUE NOT NULL,
@@ -54,7 +88,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     -- Foreign key to accounts table
-    FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE
+    FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Create indexes for better query performance
@@ -64,6 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
 CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions(merchant);
 CREATE INDEX IF NOT EXISTS idx_transactions_amount ON transactions(amount);
 CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
 
 -- Create sync_logs table to track synchronization operations
 CREATE TABLE IF NOT EXISTS sync_logs (
@@ -71,6 +107,7 @@ CREATE TABLE IF NOT EXISTS sync_logs (
     account_id VARCHAR(255) NOT NULL,
     from_date DATE NOT NULL,
     to_date DATE NOT NULL,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     status VARCHAR(50) NOT NULL, -- 'success', 'partial', 'failed'
     inserted_count INTEGER DEFAULT 0,
     updated_count INTEGER DEFAULT 0,
@@ -79,7 +116,8 @@ CREATE TABLE IF NOT EXISTS sync_logs (
     error_details JSONB,
     sync_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE
+    FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Create index for sync logs
@@ -99,6 +137,17 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_accounts_updated_at 
     BEFORE UPDATE ON accounts 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_users_updated_at 
+    BEFORE UPDATE ON users 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_transactions_updated_at 
+    BEFORE UPDATE ON transactions 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Clean up expired session tokens (run periodically)
+-- DELETE FROM session_tokens WHERE expires_at < CURRENT_TIMESTAMP;
 
 CREATE TRIGGER update_transactions_updated_at 
     BEFORE UPDATE ON transactions 
@@ -120,3 +169,16 @@ INSERT INTO transactions (
     ('txn_002', '2024-01-14 15:45:00+05:30', 1200.00, 'debit', 'BIG BAZAAR MUMBAI', 'acc_12345', 'Big Bazaar', 'shopping', CURRENT_TIMESTAMP),
     ('txn_003', '2024-01-13 09:15:00+05:30', 50000.00, 'credit', 'SALARY CREDIT', 'acc_67890', null, 'salary', CURRENT_TIMESTAMP)
 ON CONFLICT (bank_transaction_id) DO NOTHING;
+
+-- Insert sample user for development (password: 'testpassword123')
+INSERT INTO users (email, password_hash) 
+VALUES (
+    'test@example.com', 
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6.6Y8r1xCC'
+) ON CONFLICT (email) DO NOTHING;
+
+-- Note: The password hash above is for 'testpassword123'
+-- In production, users should register through the API with proper password hashing
+
+-- Cleanup query for session tokens (can be run periodically)
+-- DELETE FROM session_tokens WHERE expires_at < CURRENT_TIMESTAMP;

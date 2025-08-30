@@ -49,11 +49,36 @@ async def init_db(pool: asyncpg.Pool):
             END $$;
         """)
 
+        # Create users table
+        await connection.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                aa_account_id VARCHAR(255) UNIQUE,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Create session_tokens table for JWT blacklisting
+        await connection.execute("""
+            CREATE TABLE IF NOT EXISTS session_tokens (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token_id VARCHAR(255) UNIQUE NOT NULL,
+                expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         # Create accounts table
         await connection.execute("""
             CREATE TABLE IF NOT EXISTS accounts (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 account_id VARCHAR(255) UNIQUE NOT NULL,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
                 account_name VARCHAR(255),
                 bank_name VARCHAR(255),
                 account_type VARCHAR(50),
@@ -65,11 +90,12 @@ async def init_db(pool: asyncpg.Pool):
             )
         """)
 
-        # Create transactions table with proper schema
+        # Create transactions table with user association
         await connection.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 bank_transaction_id VARCHAR(255) UNIQUE NOT NULL,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
                 ts TIMESTAMP WITH TIME ZONE NOT NULL,
                 amount DECIMAL(15,2) NOT NULL CHECK (amount > 0),
                 type transaction_type NOT NULL,
@@ -83,7 +109,25 @@ async def init_db(pool: asyncpg.Pool):
             )
         """)
 
-        # Create indexes
+        # Create indexes for performance
+        await connection.execute("""
+            CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
+        """)
+        await connection.execute("""
+            CREATE INDEX IF NOT EXISTS idx_session_tokens_user_id ON session_tokens(user_id)
+        """)
+        await connection.execute("""
+            CREATE INDEX IF NOT EXISTS idx_session_tokens_token_id ON session_tokens(token_id)
+        """)
+        await connection.execute("""
+            CREATE INDEX IF NOT EXISTS idx_session_tokens_expires_at ON session_tokens(expires_at)
+        """)
+        await connection.execute("""
+            CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id)
+        """)
+        await connection.execute("""
+            CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)
+        """)
         await connection.execute("""
             CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id)
         """)
@@ -95,6 +139,11 @@ async def init_db(pool: asyncpg.Pool):
         """)
 
         print("✅ Database tables initialized successfully")
+        print("   - Users table with authentication support")
+        print("   - Session tokens table for JWT blacklisting")
+        print("   - Accounts table with user association")
+        print("   - Transactions table with user association")
+        print("   - All indexes created for optimal performance")
 
 async def close_db():
     """Close database connections"""

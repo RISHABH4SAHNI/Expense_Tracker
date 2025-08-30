@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import authService from './auth';
 
 // Smart API configuration that works across different environments
 const getApiHost = () => {
@@ -105,18 +106,39 @@ const AuthManager = {
   }
 };
 
-// Helper function to get auth headers
+// Helper function to get auth headers - Updated to use authService
 const getAuthHeaders = async () => {
-  const token = await AuthManager.getAuthToken();
-  const headers = {
-    'Content-Type': 'application/json',
-  };
+  try {
+    return await authService.getAuthHeaders();
+  } catch (error) {
+    console.error('Error getting auth headers:', error);
+    return {
+      'Content-Type': 'application/json',
+    };
+  }
+};
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+// Global reference to auth context (will be set from App.js)
+let authContextRef = null;
+
+export const setAuthContext = (authContext) => {
+  authContextRef = authContext;
+};
+
+// Helper function to handle 401 errors
+const handle401Error = async () => {
+  console.log('🔄 Handling 401 error - attempting token refresh');
+
+  if (authContextRef && authContextRef.refreshToken) {
+    const refreshSuccess = await authContextRef.refreshToken();
+    if (!refreshSuccess) {
+      console.log('🚪 Token refresh failed - signing out');
+      await authContextRef.signOut();
+    }
+    return refreshSuccess;
   }
 
-  return headers;
+  return false;
 };
 
 // Helper function to create fetch with timeout
@@ -138,6 +160,45 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = API_TIMEOUT) => {
     if (error.name === 'AbortError') {
       throw new Error(`Request timeout after ${timeoutMs}ms. Please check your network connection.`);
     }
+    throw error;
+  }
+};
+
+// Enhanced fetch with auth and retry logic
+const fetchWithAuth = async (url, options = {}, timeoutMs = API_TIMEOUT) => {
+  try {
+    // Get auth headers
+    const headers = await getAuthHeaders();
+
+    // Make request
+    const response = await fetchWithTimeout(url, {
+      ...options,
+      headers: {
+        ...headers,
+        ...options.headers,
+      },
+    }, timeoutMs);
+
+    // Handle 401 errors
+    if (response.status === 401) {
+      console.log('🔑 Received 401 - attempting token refresh');
+      const refreshSuccess = await handle401Error();
+
+      if (refreshSuccess) {
+        // Retry the request with new token
+        const newHeaders = await getAuthHeaders();
+        return await fetchWithTimeout(url, {
+          ...options,
+          headers: {
+            ...newHeaders,
+            ...options.headers,
+          },
+        }, timeoutMs);
+      }
+    }
+
+    return response;
+  } catch (error) {
     throw error;
   }
 };
@@ -292,11 +353,8 @@ const syncTransactions = async (localTransactions) => {
   );
 
   try {
-    const headers = await getAuthHeaders();
-
-    const response = await fetchWithTimeout(`${BASE_URL}/transactions/sync`, {
+    const response = await fetchWithAuth(`${BASE_URL}/transactions/sync`, {
       method: 'POST',
-      headers,
       body: JSON.stringify(validTransactions),
     });
 
@@ -325,8 +383,6 @@ const fetchTransactionsFromServer = async (options = {}) => {
   } = options;
 
   try {
-    const headers = await getAuthHeaders();
-
     // Build query parameters
     const queryParams = new URLSearchParams();
     if (accountId) queryParams.append('account_id', accountId);
@@ -337,9 +393,8 @@ const fetchTransactionsFromServer = async (options = {}) => {
 
     const url = `${BASE_URL}/transactions?${queryParams.toString()}`;
 
-    const response = await fetchWithTimeout(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
-      headers,
     });
 
     if (!response.ok) {
@@ -366,19 +421,16 @@ const askQuestion = async (question, contextDays = 30) => {
   }
 
   try {
-    const headers = await getAuthHeaders();
-    console.log('📡 Making request with headers:', headers);
-
     const requestBody = {
       question: question.trim(),
       context_days: contextDays
     };
 
+    console.log('📡 Making authenticated request');
     console.log('📤 Request body:', requestBody);
 
-    const response = await fetchWithTimeout(`${BASE_URL}/qa/`, {
+    const response = await fetchWithAuth(`${BASE_URL}/qa/`, {
       method: 'POST',
-      headers,
       body: JSON.stringify(requestBody),
     }, REQUEST_TIMEOUT); // Use longer timeout for QA requests
 
