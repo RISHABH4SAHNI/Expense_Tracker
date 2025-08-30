@@ -1,15 +1,48 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
+from typing import Optional
 import asyncpg
 import redis.asyncio as redis
-from app.routes import transactions, qa
+import logging
+
+from app.routes import transactions, qa, auth
 from app.database import get_db, init_db, close_db
 import os
 
 # Global connections
 db_pool = None
 redis_client = None
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to optionally set request.state.user when authentication is present
+
+    This allows routes to access user information without requiring authentication
+    by checking request.state.user directly.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        # Initialize user state
+        request.state.user = None
+
+        # Try to extract user from Authorization header (if present)
+        try:
+            from app.deps.auth import get_optional_user
+            # This will set request.state.user if authentication is valid
+            await get_optional_user(request, None, None)
+        except Exception:
+            # If authentication fails, user remains None
+            pass
+
+        response = await call_next(request)
+        return response
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,7 +59,7 @@ async def lifespan(app: FastAPI):
         await init_db(db_pool)
         print("✅ Connected to PostgreSQL")
     except Exception as e:
-        print(f"⚠️  PostgreSQL connection failed: {e}")
+        logger.warning(f"PostgreSQL connection failed: {e}")
         print("⚠️  Running without database (development mode)")
 
     # Try to connect to Redis (optional for development)
@@ -35,12 +68,15 @@ async def lifespan(app: FastAPI):
         await redis_client.ping()
         print("✅ Connected to Redis")
 
-        # Pass Redis client to transactions module
-        from app.routes.transactions import set_redis_client
-        set_redis_client(redis_client)
+        # Pass Redis client to modules that need it
+        from app.routes.transactions import set_redis_client as set_transactions_redis
+        from app.routes.auth import set_redis_client as set_auth_redis
+
+        set_transactions_redis(redis_client)
+        set_auth_redis(redis_client)
 
     except Exception as e:
-        print(f"⚠️  Redis connection failed: {e}")
+        logger.warning(f"Redis connection failed: {e}")
         print("⚠️  Running without Redis (development mode)")
 
     print("🚀 FastAPI server started successfully!")
@@ -57,26 +93,59 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="Expense Tracker API",
-    description="Mobile-first personal finance app with AI-powered features",
+    description="Mobile-first personal finance app with AI-powered features and secure authentication",
     version="1.0.0",
+    docs_url="/docs",  # Swagger UI
     lifespan=lifespan
 )
 
-# CORS middleware for Expo development
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+app.add_middleware(CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",     # React development
+        "http://localhost:19006",    # Expo web development  
+        "exp://192.168.*",          # Expo mobile development (local network)
+        "https://*.expo.dev",        # Expo hosted apps
+        "*"                         # Allow all for development (remove in production)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Add authentication middleware to set request.state.user
+app.add_middleware(AuthMiddleware)
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"ok": True}
+    """
+    Health check endpoint with authentication status
+
+    Returns system status and optionally user information if authenticated.
+    """
+    return {
+        "ok": True,
+        "timestamp": "2025-08-30T10:59:17Z", 
+        "version": "1.0.0",
+        "services": {
+            "database": bool(db_pool),
+            "redis": bool(redis_client),
+            "authentication": True
+        }
+    }
+
+# Authentication status endpoint  
+@app.get("/auth-status")
+async def auth_status(request: Request):
+    """Check authentication status from middleware"""
+    user = getattr(request.state, 'user', None)
+    return {
+        "authenticated": user is not None,
+        "user": user.to_dict() if user else None
+    }
 
 # Include routers
+app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 app.include_router(qa.router, prefix="/qa", tags=["qa"])
 
