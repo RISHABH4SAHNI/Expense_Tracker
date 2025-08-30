@@ -1,7 +1,7 @@
-# Regex -> merchant KB -> LLM fallback
 """
 Transaction Parser Service
-Implements parse_transaction with regex normalization, merchant lookup, and LLM fallback
+Enhanced with Merchant KB integration for improved accuracy
+Implements parse_transaction with regex normalization, merchant KB lookup, and LLM fallback
 """
 
 import re
@@ -168,51 +168,62 @@ def _lookup_merchant(cleaned_desc: str) -> Optional[str]:
 
 async def parse_transaction(raw_desc: str) -> Dict[str, any]:
     """
-    Parse transaction description with regex normalization, merchant lookup, and LLM fallback
+    Enhanced parsing with Merchant KB integration for better accuracy
+
+    Flow: Regex normalization -> Merchant KB -> Dictionary lookup -> LLM fallback
 
     Args:
         raw_desc: Raw transaction description from bank
 
     Returns:
-        Dict with keys: {cleaned_desc, merchant_candidate, category_candidate, confidence}
+        Dict with keys: {cleaned_desc, merchant_candidate, category_candidate, confidence, explanation}
 
     Unit test expectations:
-    - parse_transaction("UPI-AMZN123456-Payment") -> {merchant: "Amazon", category: "shopping", confidence: 0.9}
-    - parse_transaction("IMPS-ZOMATO789-Food Order") -> {merchant: "Zomato", category: "food", confidence: 0.9}
-    - parse_transaction("Random Merchant XYZ") -> {merchant: None/LLM, category: "other", confidence: 0.3}
+    - parse_transaction("UPI-AMZN123456-Payment") -> {merchant: "Amazon", category: "shopping", confidence: 0.95}
+    - parse_transaction("IMPS-ZOMATO789-Food Order") -> {merchant: "Zomato", category: "food", confidence: 0.95}
+    - parse_transaction("Random Merchant XYZ") -> {merchant: None/LLM, category: "other", confidence: 0.0-0.8}
     """
     logger.debug(f"Parsing transaction: {raw_desc}")
 
     # Step 1: Apply regex normalizers
     cleaned_desc = _apply_regex_normalizers(raw_desc)
 
-    # Step 2: Lookup merchant in dictionary
+    # Step 2: Try enhanced LLM client (which includes Merchant KB + fallback)
+    llm_result = await llm_client.classify_transaction(cleaned_desc)
+
     merchant_candidate = _lookup_merchant(cleaned_desc)
     category_candidate = None
+    explanation = "No classification method succeeded"
     confidence = 0.0
 
-    if merchant_candidate:
-        # High confidence for dictionary matches
-        confidence = 0.9
+    # Use LLM client result (which includes Merchant KB integration)
+    if llm_result.get("merchant"):
+        merchant_candidate = llm_result["merchant"]
+        category_candidate = llm_result["category"]
+        confidence = llm_result.get("confidence", 0.5)
+        explanation = llm_result.get("explanation", "LLM classification")
+        logger.debug(f"LLM/KB classification: {merchant_candidate} -> {category_candidate} (confidence: {confidence})")
+
+    # Fallback to dictionary lookup if LLM/KB didn't find anything
+    elif merchant_candidate:
+        confidence = 0.8  # Medium confidence for dictionary matches
         category_candidate = MERCHANT_CATEGORIES.get(merchant_candidate, TransactionCategory.OTHER).value
+        explanation = f"Dictionary match: {merchant_candidate}"
         logger.debug(f"Dictionary match: {merchant_candidate} -> {category_candidate}")
     else:
-        # Step 3: LLM fallback for unknown merchants
-        llm_result = await llm_client.classify_transaction(cleaned_desc)
-        merchant_candidate = llm_result.get("merchant")
-        category_candidate = llm_result.get("category", TransactionCategory.OTHER.value)
-        confidence = 0.3  # Lower confidence for LLM predictions
-        logger.debug(f"LLM classification: {merchant_candidate} -> {category_candidate}")
+        # No matches found anywhere
+        category_candidate = TransactionCategory.OTHER.value
+        confidence = 0.0
+        explanation = "No merchant patterns matched"
+        logger.debug("No merchant classification found")
 
     return {
         "cleaned_desc": cleaned_desc,
         "merchant_candidate": merchant_candidate,
         "category_candidate": category_candidate,
-        "confidence": confidence
+        "confidence": confidence,
+        "explanation": explanation
     }
-
-# Unit Test Expectations:
-# 1. test_regex_normalization():
 #    - "UPI-AMZN12345678-Payment" -> "AMZN-Payment"  
 #    - "IMPS/ZOMATO87654321/Food" -> "ZOMATO/Food"
 #    - "NEFT-HDFC123456789-Transfer 12:34:56" -> "HDFC-Transfer"

@@ -17,6 +17,7 @@ import httpx
 import asyncio
 from typing import Dict, Optional, Any
 from app.models.pydantic_models import TransactionCategory
+from .merchant_kb_service import merchant_kb, MerchantMatch
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +28,13 @@ LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "30"))
 
 class LLMClient:
     """
-    Advanced LLM client for transaction classification
+    Enhanced LLM client with Merchant KB integration for transaction classification
 
-    Supports both deterministic heuristics (dev) and remote LLM calls (prod)
+    Priority: Merchant KB -> Fallback Keywords -> Remote LLM
     """
 
     def __init__(self):
-        # Comprehensive keyword-based classification rules
+        # Fallback keyword-based classification rules (used when Merchant KB fails)
         self.merchant_keywords = {
             # E-commerce & Shopping
             "amazon": {"merchant": "Amazon", "category": TransactionCategory.SHOPPING},
@@ -105,9 +106,12 @@ class LLMClient:
             "interest": {"merchant": "Interest", "category": TransactionCategory.INVESTMENT},
         }
 
+        # Load merchant KB on initialization
+        merchant_kb.load_kb()
+
     async def classify_transaction(self, text: str) -> Dict[str, Optional[str]]:
         """
-        Classify transaction using deterministic heuristics or remote LLM
+        Classify transaction using Merchant KB, fallback keywords, or remote LLM
 
         Args:
             text: Transaction description text
@@ -116,13 +120,68 @@ class LLMClient:
             Dict with 'merchant', 'category', and 'explanation' keys
         """
         if USE_REMOTE_LLM:
-            return await self._classify_with_remote_llm(text)
+            return await self._classify_with_hybrid_approach(text)
         else:
-            return await self._classify_with_heuristics(text)
+            return await self._classify_with_hybrid_approach(text)
+
+    async def _classify_with_hybrid_approach(self, text: str) -> Dict[str, Optional[str]]:
+        """
+        Hybrid classification: Merchant KB -> Fallback Keywords -> LLM
+
+        Args:
+            text: Transaction description
+
+        Returns:
+            Classification result with explanation
+        """
+        # Step 1: Try Merchant KB first (highest priority)
+        kb_match = merchant_kb.match_merchant(text)
+        if kb_match and kb_match.confidence >= 0.7:  # High confidence threshold for KB
+            return {
+                "merchant": kb_match.merchant,
+                "category": kb_match.category,
+                "confidence": kb_match.confidence,
+                "explanation": f"Merchant KB {kb_match.match_type} match: '{kb_match.pattern}' (confidence: {kb_match.confidence:.2f})"
+            }
+
+        # Step 2: Try fallback keywords
+        fallback_result = await self._classify_with_heuristics(text)
+
+        # Step 3: If we have a KB match with lower confidence, compare with fallback
+        if kb_match:
+            # If fallback found nothing, use KB match even with lower confidence
+            if fallback_result.get("merchant") is None:
+                return {
+                    "merchant": kb_match.merchant,
+                    "category": kb_match.category,
+                    "confidence": kb_match.confidence,
+                    "explanation": f"Merchant KB {kb_match.match_type} match (low confidence): '{kb_match.pattern}' (confidence: {kb_match.confidence:.2f})"
+                }
+
+            # If both found something, prefer KB if confidence is reasonably close
+            if kb_match.confidence >= 0.5:
+                return {
+                    "merchant": kb_match.merchant,
+                    "category": kb_match.category,
+                    "confidence": kb_match.confidence,
+                    "explanation": f"Merchant KB {kb_match.match_type} match over fallback: '{kb_match.pattern}' (confidence: {kb_match.confidence:.2f})"
+                }
+
+        # Step 4: Use fallback result or try LLM if enabled
+        if USE_REMOTE_LLM and fallback_result.get("merchant") is None:
+            try:
+                llm_result = await self._call_llm_endpoint(text)
+                llm_result["explanation"] = f"LLM classification (KB and fallback failed): {llm_result.get('explanation', '')}"
+                return llm_result
+            except Exception as e:
+                logger.error(f"LLM classification failed: {e}")
+                fallback_result["explanation"] = f"All methods failed, using fallback: {fallback_result.get('explanation', '')}"
+
+        return fallback_result
 
     async def _classify_with_heuristics(self, text: str) -> Dict[str, Optional[str]]:
         """
-        Deterministic keyword-based classification for development
+        Fallback keyword-based classification (used when Merchant KB fails)
 
         Args:
             text: Transaction description
@@ -137,6 +196,7 @@ class LLMClient:
             return {
                 "merchant": None,
                 "category": TransactionCategory.OTHER.value,
+                "confidence": 0.0,
                 "explanation": "Empty transaction description"
             }
 
@@ -154,6 +214,7 @@ class LLMClient:
             return {
                 "merchant": info["merchant"],
                 "category": info["category"].value,
+                "confidence": 0.8,  # Fixed confidence for fallback keywords
                 "explanation": f"Keyword match: '{keyword}' in transaction description"
             }
 
@@ -161,12 +222,13 @@ class LLMClient:
         return {
             "merchant": None,
             "category": TransactionCategory.OTHER.value,
+            "confidence": 0.0,
             "explanation": f"No keyword matches found for: '{text[:50]}...'"
         }
 
     async def _classify_with_remote_llm(self, text: str) -> Dict[str, Optional[str]]:
         """
-        Classify transaction using remote Llama-3 8B endpoint
+        Classify transaction using remote Llama-3 8B endpoint (deprecated, use hybrid approach)
 
         Args:
             text: Transaction description
@@ -286,5 +348,32 @@ if __name__ == "__main__":
             print(f"Input: '{desc}'")
             print(f"Result: {result}")
             print()
+            return result
 
     asyncio.run(test_llm_client())
+
+    # Test merchant KB integration
+    async def test_merchant_kb():
+        """Test merchant KB integration"""
+        print("\n🏪 Testing Merchant KB Integration\n")
+
+        kb_test_cases = [
+            "ZOMATO*ORDER12345",
+            "AMZ*PURCHASE789", 
+            "UBER*TRIP456",
+            "NETFLIX SUBSCRIPTION",
+            "AIRTEL BILL PAYMENT",
+            "Unknown Merchant ABC"
+        ]
+
+        for desc in kb_test_cases:
+            result = await llm_client.classify_transaction(desc)
+            print(f"Input: '{desc}'")
+            print(f"Merchant: {result.get('merchant')}")
+            print(f"Category: {result.get('category')}")
+            print(f"Confidence: {result.get('confidence', 'N/A')}")
+            print(f"Explanation: {result.get('explanation')}")
+            print()
+
+    print("\n" + "="*50)
+    asyncio.run(test_merchant_kb())

@@ -1,0 +1,208 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-01-30T12:30:00Z",
+    "description": "Merchant Knowledge Base for transaction classification",
+    "total_patterns": 180,
+    "categories_covered": [
+      "food", "shopping", "transport", "entertainment", 
+      "bills", "healthcare", "education", "salary", 
+      "investment", "other"
+    ]
+  },
+  "merchant_patterns": {
+    "food_and_dining": {
+      "ZOMATO": {"name": "Zomato", "category": "food", "confidence": 0.95},
+      "SWIGGY": {"name": "Swiggy", "category": "food", "confidence": 0.95},
+      "ZOMATO*": {"name": "Zomato", "category": "food", "confidence": 0.95},
+      "SWIGGY*": {"name": "Swiggy", "category": "food", "confidence": 0.95},
+      "MCDONALD": {"name": "McDonald's", "category": "food", "confidence": 0.90},
+      "KFC": {"name": "KFC", "category": "food", "confidence": 0.90},
+      "DOMINOS": {"name": "Domino's Pizza", "category": "food", "confidence": 0.90},
+      "PIZZAHUT": {"name": "Pizza Hut", "category": "food", "confidence": 0.90},
+      "STARBUCKS": {"name": "Starbucks", "category": "food", "confidence": 0.85},
+      "CCD": {"name": "Cafe Coffee Day", "category": "food", "confidence": 0.85},
+      "DUNKIN": {"name": "Dunkin' Donuts", "category": "food", "confidence": 0.85},
+      "SUBWAY": {"name": "Subway", "category": "food", "confidence": 0.85},
+      "HALDIRAM": {"name": "Haldiram's", "category": "food", "confidence": 0.80},
+      "RESTAURANT": {"name": "Restaurant", "category": "food", "confidence": 0.70},
+      "FOOD": {"name": "Food Purchase", "category": "food", "confidence": 0.70},
+      "CAFE": {"name": "Cafe", "category": "food", "confidence": 0.70},
+      "DINEOUT": {"name": "Dineout", "category": "food", "confidence": 0.80}
+    },
+    "e_commerce_shopping": {
+      "AMZN": {"name": "Amazon", "category": "shopping", "confidence": 0.95},
+      "AMAZON": {"name": "Amazon", "category": "shopping", "confidence": 0.95},
+      "AMZ*": {"name": "Amazon", "category": "shopping", "confidence": 0.95},
+      "FLIPKART": {"name": "Flipkart", "category": "shopping", "confidence": 0.95},
+      "MYNTRA": {"name": "Myntra", "category": "shopping", "confidence": 0.90},
+      "NYKAA": {"name": "Nykaa", "category": "shopping", "confidence": 0.90},
+      "SNAPDEAL": {"name": "Snapdeal", "category": "shopping", "confidence": 0.85},
+      "PAYTMMALL": {"name": "Paytm Mall", "category": "shopping", "confidence": 0.85},
+      "BIGBASKET": {"name": "BigBasket", "category": "shopping", "confidence": 0.90},
+      "GROFERS": {"name": "Grofers", "category": "shopping", "confidence": 0.85},
+      "BLINKIT": {"name": "Blinkit", "category": "shopping", "confidence": 0.85},
+      "ZEPTO": {"name": "Zepto", "category": "shopping", "confidence": 0.85},
+      "RELIANCE": {"name": "Reliance Digital", "category": "shopping", "confidence": 0.80},
+      "CROMA": {"name": "Croma", "category": "shopping", "confidence": 0.80},
+      "VIJAYSALES": {"name": "Vijay Sales", "category": "shopping", "confidence": 0.80}
+    },
+    "transportation": {
+      "UBER": {"name": "Uber", "category": "transport", "confidence": 0.95},
+      "OLA": {"name": "Ola", "category": "transport", "confidence": 0.95},
+      "UBER*": {"name": "Uber", "category": "transport", "confidence": 0.95},
+      "OLA*": {"name": "Ola", "category": "transport", "confidence": 0.95},
+      "IRCTC": {"name": "IRCTC", "category": "transport", "confidence": 0.95},
+      "MAKEMYTRIP": {"name": "MakeMyTrip", "category": "transport", "confidence": 0.85},
+      "GOIBIBO": {"name": "Goibibo", "category": "transport", "confidence": 0.85},
+      "CLEARTRIP": {"name": "Cleartrip", "category": "transport", "confidence": 0.85},
+      "INDIGO": {"name": "IndiGo Airlines", "category": "transport", "confidence": 0.90},
+      "SPICEJET": {"name": "SpiceJet", "category": "transport", "confidence": 0.90},
+      "METRO": {"name": "Metro", "category": "transport", "confidence": 0.80},
+      "BMTC": {"name": "BMTC", "category": "transport", "confidence": 0.80},
+      "BEST": {"name": "BEST", "category": "transport", "confidence": 0.80},
+      "RAPIDO": {"name": "Rapido", "category": "transport", "confidence": 0.85},
+      "REDBUS": {"name": "RedBus", "category": "transport", "confidence": 0.85}
+    },
+    "entertainment_subscriptions": {
+      "NETFLIX": {"name": "Netflix", "category": "entertainment", "confidence": 0.95},
+      "SPOTIFY": {"name": "Spotify", "category": "entertainment", "confidence": 0.95},
+      "PRIME": {"name": "Amazon Prime", "category": "entertainment", "confidence": 0.90},
+      "HOTSTAR": {"name": "Disney+ Hotstar", "category": "entertainment", "confidence": 0.90},
+      "YOUTUBE": {"name": "YouTube Premium", "category": "entertainment", "confidence": 0.85},
+      "SONYLIV": {"name": "SonyLIV", "category": "entertainment", "confidence": 0.85},
+      "ZEEPLEX": {"name": "ZEE5", "category": "entertainment", "confidence": 0.80},
+      "VOOT": {"name": "Voot", "category": "entertainment", "confidence": 0.80},
+      "APPLEMS": {"name": "Apple Music", "category": "entertainment", "confidence": 0.85},
+      "JIOSAAVN": {"name": "JioSaavn", "category": "entertainment", "confidence": 0.80},
+      "GAANA": {"name": "Gaana", "category": "entertainment", "confidence": 0.80},
+      "BOOKMYSHOW": {"name": "BookMyShow", "category": "entertainment", "confidence": 0.90},
+      "PAYTM MOVIE": {"name": "Paytm Movies", "category": "entertainment", "confidence": 0.85}
+    },
+    "bills_utilities": {
+      "AIRTEL": {"name": "Airtel", "category": "bills", "confidence": 0.95},
+      "JIO": {"name": "Jio", "category": "bills", "confidence": 0.95},
+      "VODAFONE": {"name": "Vodafone Idea", "category": "bills", "confidence": 0.95},
+      "BSNL": {"name": "BSNL", "category": "bills", "confidence": 0.90},
+      "TATASKY": {"name": "Tata Sky", "category": "bills", "confidence": 0.90},
+      "DISHTV": {"name": "Dish TV", "category": "bills", "confidence": 0.90},
+      "ELECTRICITY": {"name": "Electricity Bill", "category": "bills", "confidence": 0.85},
+      "WATER": {"name": "Water Bill", "category": "bills", "confidence": 0.85},
+      "GAS": {"name": "Gas Bill", "category": "bills", "confidence": 0.85},
+      "BESCOM": {"name": "BESCOM", "category": "bills", "confidence": 0.85},
+      "ADANI GAS": {"name": "Adani Gas", "category": "bills", "confidence": 0.85},
+      "INDANE": {"name": "Indane Gas", "category": "bills", "confidence": 0.85},
+      "PAYTM BILL": {"name": "Bill Payment", "category": "bills", "confidence": 0.80}
+    },
+    "healthcare": {
+      "APOLLO": {"name": "Apollo Hospitals", "category": "healthcare", "confidence": 0.90},
+      "FORTIS": {"name": "Fortis Healthcare", "category": "healthcare", "confidence": 0.90},
+      "MAX": {"name": "Max Healthcare", "category": "healthcare", "confidence": 0.85},
+      "MEDANTA": {"name": "Medanta", "category": "healthcare", "confidence": 0.85},
+      "PHARMACY": {"name": "Pharmacy", "category": "healthcare", "confidence": 0.80},
+      "NETMEDS": {"name": "Netmeds", "category": "healthcare", "confidence": 0.85},
+      "1MG": {"name": "1mg", "category": "healthcare", "confidence": 0.85},
+      "PHARMEASY": {"name": "PharmEasy", "category": "healthcare", "confidence": 0.85},
+      "HOSPITAL": {"name": "Hospital", "category": "healthcare", "confidence": 0.75},
+      "MEDICAL": {"name": "Medical", "category": "healthcare", "confidence": 0.75},
+      "DOCTOR": {"name": "Doctor", "category": "healthcare", "confidence": 0.75}
+    },
+    "education": {
+      "BYJU": {"name": "BYJU'S", "category": "education", "confidence": 0.90},
+      "UNACADEMY": {"name": "Unacademy", "category": "education", "confidence": 0.90},
+      "VEDANTU": {"name": "Vedantu", "category": "education", "confidence": 0.85},
+      "WHITEHAT": {"name": "WhiteHat Jr", "category": "education", "confidence": 0.85},
+      "UDEMY": {"name": "Udemy", "category": "education", "confidence": 0.85},
+      "COURSERA": {"name": "Coursera", "category": "education", "confidence": 0.85},
+      "SKILLSHARE": {"name": "Skillshare", "category": "education", "confidence": 0.80},
+      "SCHOOL": {"name": "School Fee", "category": "education", "confidence": 0.75},
+      "COLLEGE": {"name": "College Fee", "category": "education", "confidence": 0.75},
+      "UNIVERSITY": {"name": "University Fee", "category": "education", "confidence": 0.75}
+    },
+    "payment_platforms": {
+      "PAYTM": {"name": "Paytm", "category": "other", "confidence": 0.70},
+      "GPAY": {"name": "Google Pay", "category": "other", "confidence": 0.70},
+      "PHONEPE": {"name": "PhonePe", "category": "other", "confidence": 0.70},
+      "UPI": {"name": "UPI Transfer", "category": "other", "confidence": 0.60},
+      "NEFT": {"name": "NEFT Transfer", "category": "other", "confidence": 0.60},
+      "IMPS": {"name": "IMPS Transfer", "category": "other", "confidence": 0.60},
+      "RTGS": {"name": "RTGS Transfer", "category": "other", "confidence": 0.60}
+    },
+    "banking_finance": {
+      "ATM": {"name": "ATM Withdrawal", "category": "other", "confidence": 0.80},
+      "HDFC": {"name": "HDFC Bank", "category": "other", "confidence": 0.70},
+      "ICICI": {"name": "ICICI Bank", "category": "other", "confidence": 0.70},
+      "SBI": {"name": "State Bank of India", "category": "other", "confidence": 0.70},
+      "AXIS": {"name": "Axis Bank", "category": "other", "confidence": 0.70},
+      "KOTAK": {"name": "Kotak Bank", "category": "other", "confidence": 0.70},
+      "YES BANK": {"name": "Yes Bank", "category": "other", "confidence": 0.70},
+      "PNB": {"name": "Punjab National Bank", "category": "other", "confidence": 0.70},
+      "CANARA": {"name": "Canara Bank", "category": "other", "confidence": 0.70},
+      "SALARY": {"name": "Salary Credit", "category": "salary", "confidence": 0.90},
+      "DIVIDEND": {"name": "Dividend", "category": "investment", "confidence": 0.85},
+      "INTEREST": {"name": "Interest Credit", "category": "investment", "confidence": 0.80}
+    },
+    "fuel_automotive": {
+      "IOCL": {"name": "Indian Oil", "category": "transport", "confidence": 0.85},
+      "BPCL": {"name": "Bharat Petroleum", "category": "transport", "confidence": 0.85},
+      "HPCL": {"name": "Hindustan Petroleum", "category": "transport", "confidence": 0.85},
+      "SHELL": {"name": "Shell", "category": "transport", "confidence": 0.85},
+      "RELIANCE PETRO": {"name": "Reliance Petroleum", "category": "transport", "confidence": 0.85},
+      "PETROL": {"name": "Petrol Station", "category": "transport", "confidence": 0.80},
+      "DIESEL": {"name": "Fuel Station", "category": "transport", "confidence": 0.80}
+    },
+    "insurance": {
+      "LIC": {"name": "LIC", "category": "other", "confidence": 0.85},
+      "HDFC LIFE": {"name": "HDFC Life", "category": "other", "confidence": 0.85},
+      "ICICI PRU": {"name": "ICICI Prudential", "category": "other", "confidence": 0.85},
+      "BAJAJ ALLIANZ": {"name": "Bajaj Allianz", "category": "other", "confidence": 0.85},
+      "INSURANCE": {"name": "Insurance Premium", "category": "other", "confidence": 0.80}
+    }
+  },
+  "regex_patterns": {
+    "description": "Regular expression patterns for complex merchant identification",
+    "patterns": [
+      {
+        "pattern": "ZOMATO\\*ORDER.*",
+        "merchant": "Zomato",
+        "category": "food",
+        "confidence": 0.95
+      },
+      {
+        "pattern": "SWIGGY\\*FOOD.*",
+        "merchant": "Swiggy",
+        "category": "food",
+        "confidence": 0.95
+      },
+      {
+        "pattern": "AMZ\\*.*",
+        "merchant": "Amazon",
+        "category": "shopping",
+        "confidence": 0.90
+      },
+      {
+        "pattern": "UPI-.*PAYTM.*",
+        "merchant": "Paytm",
+        "category": "other",
+        "confidence": 0.70
+      },
+      {
+        "pattern": ".*ATM WDL.*",
+        "merchant": "ATM Withdrawal",
+        "category": "other",
+        "confidence": 0.85
+      }
+    ]
+  },
+  "admin_instructions": {
+    "file_location": "server/app/services/merchant_kb.json",
+    "update_methods": [
+      "Direct JSON editing",
+      "CSV upload via admin UI",
+      "API endpoint for bulk updates",
+      "Machine learning suggestions"
+    ],
+    "backup_policy": "Always backup before updates",
+    "validation_required": true
+  }
+}
