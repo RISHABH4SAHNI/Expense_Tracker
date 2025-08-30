@@ -1,0 +1,25 @@
+pattern,merchant_name,category,confidence,notes
+STARBUCKS,Starbucks Coffee,food,0.90,Coffee chain - global
+TARGET,Target Store,shopping,0.85,Retail department store
+COSTCO,Costco Wholesale,shopping,0.90,Warehouse club
+WALMART,Walmart,shopping,0.90,Retail superstore
+SHELL,Shell Gas Station,transport,0.85,International fuel chain
+EXXON,ExxonMobil,transport,0.85,Fuel station
+CVS,CVS Pharmacy,healthcare,0.85,Pharmacy chain
+WALGREENS,Walgreens,healthcare,0.85,Pharmacy and convenience
+BESTBUY,Best Buy,shopping,0.85,Electronics retailer
+HOMEDEPOT,Home Depot,shopping,0.85,Home improvement
+FEDEX,FedEx,other,0.90,Shipping service
+UPS,UPS Store,other,0.90,Shipping and logistics
+DUNKIN,Dunkin Donuts,food,0.85,Coffee and donuts chain
+CHIPOTLE,Chipotle Mexican Grill,food,0.85,Fast-casual Mexican food
+PANERA,Panera Bread,food,0.80,Bakery-cafe chain
+SPOTIFY,Spotify Premium,entertainment,0.95,Music streaming service
+APPLE,Apple Store,shopping,0.85,Electronics and accessories
+GOOGLE,Google Services,other,0.80,Various Google services
+MICROSOFT,Microsoft Store,software,0.85,Software and services
+LINKEDIN,LinkedIn Premium,other,0.85,Professional networking
+ZOOM,Zoom Meetings,other,0.85,Video conferencing
+SLACK,Slack Workspace,other,0.80,Team collaboration
+GITHUB,GitHub Subscription,other,0.85,Code repository service
+HEROKU,Heroku Platform,other,0.85,Cloud platform service
