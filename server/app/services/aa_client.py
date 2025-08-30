@@ -1,316 +1,593 @@
 """
-Setu Account Aggregator Sandbox Client Mock
+Account Aggregator (AA) Client Wrapper
 
-This module provides a lightweight mock implementation of the Setu AA client
-for development and testing purposes. It generates realistic sample transaction
-data and simulates the AA consent flow.
+This module provides a comprehensive AA client wrapper with environment toggle
+support for both mock and real Account Aggregator implementations.
 
 PRODUCTION REPLACEMENT GUIDE:
 ============================
-To replace with real Setu/Finvu client:
+To replace mock with real Setu/Finvu client:
 
-1. Install Setu AA SDK: pip install setu-aa-python-sdk
-2. Replace SetuSandboxClient with SetuAAClient
+1. Install AA SDK: 
+   pip install setu-aa-python-sdk
+   # OR
+   pip install finvu-aa-python-sdk
+
 3. Update environment variables:
-   - SETU_CLIENT_ID
-   - SETU_CLIENT_SECRET  
-   - SETU_BASE_URL
-   - SETU_REDIRECT_URL
-4. Implement real OAuth consent flow
+   - USE_REAL_AA=true
+   - AA_BASE_URL=https://api.setu.co
+   - AA_API_KEY=your_api_key
+   - AA_SECRET=your_secret_key
+
+4. Implement RealAAClient class with these methods:
+   - start_consent(user_id) -> real consent creation
+   - poll_consent_status(ref_id) -> real status polling
+   - fetch_transactions(account_id, since_ts, limit) -> real data fetch
+
 5. Handle real FIP (Financial Information Provider) responses
 6. Add proper error handling and retries
-7. Implement data encryption/decryption for FI data
+7. Implement webhook signature verification
 
 Real implementation would look like:
 ```python
 from setu import SetuAAClient
+# OR from finvu import FinvuAAClient
 
 client = SetuAAClient(
-    client_id=os.getenv("SETU_CLIENT_ID"),
-    client_secret=os.getenv("SETU_CLIENT_SECRET"),
-    base_url=os.getenv("SETU_BASE_URL")
+    api_key=os.getenv("AA_API_KEY"),
+    secret=os.getenv("AA_SECRET"),
+    base_url=os.getenv("AA_BASE_URL")
 )
 
-# Real consent creation
-consent = await client.create_consent(
-    user_id=user_id,
-    fip_ids=["HDFC", "ICICI", "SBI"],
-    data_range={"from": from_date, "to": to_date}
-)
+class RealAAClient:
+    def __init__(self):
+        self.client = client
 
-# Real data fetch
-data = await client.fetch_financial_information(
-    consent_handle=consent_handle,
-    data_session_id=session_id
-)
+    async def start_consent(self, user_id: str):
+        # Real consent creation with actual banks
+        consent = await self.client.create_consent(
+            user_id=user_id,
+            fip_ids=["HDFC", "ICICI", "SBI", "AXIS"],
+            data_range={"from": "2023-01-01", "to": "2024-12-31"}
+        )
+        return {"consent_url": consent.redirect_url, "ref_id": consent.id}
+
+    async def poll_consent_status(self, ref_id: str):
+        # Real status polling
+        status = await self.client.get_consent_status(ref_id)
+        return status.status  # "PENDING", "ACTIVE", "EXPIRED", etc.
+
+    async def fetch_transactions(self, account_id: str, since_ts=None, limit=500):
+        # Real transaction fetching with FI data decryption
+        data = await self.client.fetch_financial_information(
+            account_id=account_id,
+            from_date=since_ts,
+            limit=limit
+        )
+        return data.transactions
 ```
 """
 
-import asyncio
+import os
+import json
 import uuid
 import random
+import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+import hashlib
+import hmac
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
 from decimal import Decimal
-from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
 
-from app.models.pydantic_models import TransactionIn, TransactionType
+import httpx
+import asyncpg
 
-# Configure logging
+from app.config import is_real_aa
+from app.database import get_db
+from app.services.aa_security import encrypt_token
+from app.models.aa_models import AAConsentStatus
+
 logger = logging.getLogger(__name__)
 
-@dataclass
+
 class ConsentResponse:
-    """Mock consent response from AA"""
-    consent_handle: str
-    consent_id: str
-    status: str
-    user_id: str
-    account_ids: List[str]
-    expires_at: datetime
-    redirect_url: str
-
-@dataclass
-class AccountInfo:
-    """Mock account information"""
-    account_id: str
-    account_number: str
-    ifsc: str
-    bank_name: str
-    account_type: str
-    branch: str
-    balance: Decimal
-
-class SetuSandboxClient:
     """
-    Mock Setu Account Aggregator client for development and testing.
-    
-    This class simulates the Setu AA API responses with realistic data
-    for development purposes. In production, replace this with the actual
-    Setu AA SDK client.
+    Response object for AA consent operations
+
+    Provides a structured response for consent start operations with
+    consistent data access patterns.
     """
-    
-    def __init__(self, client_id: str = None, client_secret: str = None, base_url: str = None):
+
+    def __init__(self, consent_url: str, ref_id: str):
+        self.consent_url = consent_url
+        self.ref_id = ref_id
+
+    def to_dict(self) -> Dict[str, str]:
+        """Convert to dictionary representation"""
+        return {
+            "consent_url": self.consent_url,
+            "ref_id": self.ref_id
+        }
+
+    def __str__(self) -> str:
+        return f"ConsentResponse(ref_id={self.ref_id})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+class AAClientError(Exception):
+    """Base exception for AA client operations"""
+    pass
+
+class MockAAClient:
+    """
+    Mock Account Aggregator client for development and testing.
+
+    Simulates the full AA consent flow and transaction fetching with
+    realistic data and database persistence.
+    """
+
+    def __init__(self):
+        self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        self.mock_data_file = os.path.join(self.base_dir, "mock_data", "aa_transactions.json")
+
+        # Simulated consent states (in real implementation, this would be external)
+        self._consent_states = {}
+        self._linked_accounts = {}
+
+        # Mock webhook secret for signature verification
+        self.webhook_secret = os.getenv("AA_MOCK_WEBHOOK_SECRET", "mock_webhook_secret_key")
+
+        logger.info("🏦 Initialized Mock AA Client")
+
+    async def start_consent(self, user_id: str) -> Dict[str, str]:
         """
-        Initialize mock Setu AA client
-        
-        Args:
-            client_id: Mock client ID (not used in sandbox)
-            client_secret: Mock client secret (not used in sandbox)  
-            base_url: Mock base URL (not used in sandbox)
-        """
-        self.client_id = client_id or "mock_client_id"
-        self.client_secret = client_secret or "mock_client_secret"
-        self.base_url = base_url or "https://sandbox.setu.co"
-        
-        # Mock data for realistic responses
-        self.mock_banks = [
-            {"name": "HDFC Bank", "ifsc_prefix": "HDFC0", "id": "HDFC"},
-            {"name": "ICICI Bank", "ifsc_prefix": "ICIC0", "id": "ICICI"},
-            {"name": "State Bank of India", "ifsc_prefix": "SBIN0", "id": "SBI"},
-            {"name": "Axis Bank", "ifsc_prefix": "UTIB0", "id": "AXIS"},
-            {"name": "Kotak Mahindra Bank", "ifsc_prefix": "KKBK0", "id": "KOTAK"}
-        ]
-        
-        self.mock_merchants = [
-            # Food & Dining
-            ("SWIGGY*ORDER", "food", [150, 400]),
-            ("ZOMATO*DELIVERY", "food", [200, 600]),
-            ("MCDONALDS", "food", [250, 500]),
-            ("STARBUCKS", "food", [300, 800]),
-            ("DOMINOS PIZZA", "food", [400, 800]),
-            
-            # Shopping
-            ("AMAZON PAY", "shopping", [500, 3000]),
-            ("FLIPKART", "shopping", [800, 5000]),
-            ("BIG BAZAAR", "shopping", [1000, 4000]),
-            ("RELIANCE DIGITAL", "shopping", [2000, 15000]),
-            ("MYNTRA", "shopping", [800, 3000]),
-            
-            # Transport
-            ("UBER TRIP", "transport", [80, 400]),
-            ("OLA CABS", "transport", [60, 350]),
-            ("IRCTC", "transport", [400, 2000]),
-            ("INDIAN OIL PETROL", "transport", [1000, 3000]),
-            ("METRO CARD RECHARGE", "transport", [100, 500]),
-            
-            # Bills & Utilities
-            ("BSES ELECTRICITY", "bills", [800, 3000]),
-            ("RELIANCE JIO", "bills", [200, 800]),
-            ("AIRTEL POSTPAID", "bills", [300, 1200]),
-            ("MAHANAGAR GAS", "bills", [500, 2000]),
-            ("VODAFONE IDEA", "bills", [250, 900]),
-            
-            # Entertainment
-            ("NETFLIX", "entertainment", [199, 799]),
-            ("AMAZON PRIME", "entertainment", [129, 1499]),
-            ("BOOKMYSHOW", "entertainment", [200, 800]),
-            ("SPOTIFY", "entertainment", [119, 179]),
-            ("HOTSTAR", "entertainment", [299, 1499]),
-            
-            # Healthcare
-            ("APOLLO PHARMACY", "healthcare", [200, 1500]),
-            ("PRACTO", "healthcare", [300, 1000]),
-            ("MEDPLUS", "healthcare", [150, 800]),
-            ("1MG", "healthcare", [100, 2000]),
-            
-            # Income
-            ("SALARY CREDIT", "salary", [25000, 150000]),
-            ("INTEREST CREDIT", "investment", [100, 5000]),
-            ("DIVIDEND CREDIT", "investment", [500, 10000]),
-        ]
-        
-        logger.info("🏦 Initialized Setu Sandbox Client (Mock)")
-    
-    async def simulate_consent_flow(self, user_id: str) -> ConsentResponse:
-        """
-        Simulate the AA consent flow for a user
-        
-        In production, this would:
-        1. Create consent request with Setu
-        2. Redirect user to bank login
-        3. Handle consent approval/rejection
-        4. Return consent handle for data fetching
-        
+        Create a mock consent and persist AAConsent row with status "PENDING"
+
         Args:
             user_id: User identifier
-            
+
         Returns:
-            ConsentResponse: Mock consent response with handle and account IDs
+            Dict containing consent_url and ref_id
         """
-        logger.info(f"🔄 Simulating consent flow for user: {user_id}")
-        
-        # Simulate API delay
-        await asyncio.sleep(0.5)
-        
-        # Generate mock consent response
-        consent_handle = f"consent_{uuid.uuid4().hex[:12]}"
-        consent_id = f"consent_id_{uuid.uuid4().hex[:8]}"
-        
-        # Generate 2-3 mock accounts for the user
-        num_accounts = random.randint(2, 3)
-        account_ids = []
-        
-        for i in range(num_accounts):
-            bank = random.choice(self.mock_banks)
-            account_id = f"{bank['id'].lower()}_{user_id}_{i+1}"
-            account_ids.append(account_id)
-        
-        consent = ConsentResponse(
-            consent_handle=consent_handle,
-            consent_id=consent_id,
-            status="ACTIVE",
-            user_id=user_id,
-            account_ids=account_ids,
-            expires_at=datetime.utcnow() + timedelta(days=90),
-            redirect_url=f"https://your-app.com/consent/callback?handle={consent_handle}"
-        )
-        
-        logger.info(f"✅ Consent approved for {len(account_ids)} accounts: {account_ids}")
-        return consent
-    
-    async def get_account_info(self, account_id: str) -> AccountInfo:
+        try:
+            # Generate mock reference ID
+            ref_id = f"mock_consent_{uuid.uuid4().hex[:12]}"
+
+            # Create consent URL (mock)
+            consent_url = f"https://mock-aa.example.com/consent?ref_id={ref_id}&user_id={user_id}"
+
+            # Get database connection
+            async with asyncpg.create_pool(
+                os.getenv("DATABASE_URL", "postgresql://expenseuser:expensepass@localhost:5433/expensedb"),
+                min_size=1, max_size=2
+            ) as pool:
+                async with pool.acquire() as conn:
+                    # Insert AAConsent record
+                    await conn.execute(
+                        """
+                        INSERT INTO aa_consents (user_id, ref_id, status, created_at, updated_at)
+                        VALUES ($1, $2, $3, $4, $5)
+                        """,
+                        user_id, ref_id, AAConsentStatus.PENDING.value, 
+                        datetime.utcnow(), datetime.utcnow()
+                    )
+
+            # Store in mock state
+            self._consent_states[ref_id] = {
+                "user_id": user_id,
+                "status": "PENDING",
+                "created_at": datetime.utcnow(),
+                "accounts": []
+            }
+
+            logger.info(f"🔄 Started consent for user {user_id}, ref_id: {ref_id}")
+
+            return {
+                "consent_url": consent_url,
+                "ref_id": ref_id
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to start consent: {e}")
+            raise AAClientError(f"Failed to start consent: {e}")
+
+    async def poll_consent_status(self, ref_id: str) -> str:
         """
-        Get mock account information
-        
+        Poll consent status. Simulates "PENDING" -> "LINKED" after short delay.
+        When "LINKED", creates AAAccount and stores encrypted token.
+
         Args:
-            account_id: Account identifier
-            
+            ref_id: Consent reference ID
+
         Returns:
-            AccountInfo: Mock account details
+            str: Status - "PENDING" or "LINKED"
         """
-        # Extract bank info from account_id
-        bank_id = account_id.split('_')[0].upper()
-        bank = next((b for b in self.mock_banks if b['id'] == bank_id), self.mock_banks[0])
-        
-        account_info = AccountInfo(
-            account_id=account_id,
-            account_number=f"{random.randint(10000000, 99999999)}",
-            ifsc=f"{bank['ifsc_prefix']}{random.randint(100000, 999999)}",
-            bank_name=bank['name'],
-            account_type=random.choice(["SAVINGS", "CURRENT"]),
-            branch=f"{bank['name']} Branch {random.randint(1, 100)}",
-            balance=Decimal(random.randint(5000, 500000))
-        )
-        
-        return account_info
-    
-    async def fetch_transactions_for_account(
+        try:
+            # Simulate timing-based status transition
+            if ref_id not in self._consent_states:
+                return "EXPIRED"
+
+            consent = self._consent_states[ref_id]
+            created_at = consent["created_at"]
+            elapsed = datetime.utcnow() - created_at
+
+            # Simulate consent approval after 30 seconds
+            if elapsed.total_seconds() > 30 and consent["status"] == "PENDING":
+                await self._simulate_consent_linking(ref_id, consent)
+                return "LINKED"
+
+            return consent["status"]
+
+        except Exception as e:
+            logger.error(f"Failed to poll consent status: {e}")
+            raise AAClientError(f"Failed to poll consent status: {e}")
+
+    async def _simulate_consent_linking(self, ref_id: str, consent: Dict):
+        """Simulate consent linking - create accounts and update database"""
+        try:
+            user_id = consent["user_id"]
+
+            # Mock token for this consent
+            mock_token = f"mock_aa_token_{uuid.uuid4().hex[:16]}"
+            encrypted_token = encrypt_token(mock_token)
+
+            # Generate 2-3 mock accounts
+            banks = ["HDFC", "ICICI", "SBI", "AXIS"]
+            num_accounts = random.randint(2, 3)
+            account_ids = []
+
+            async with asyncpg.create_pool(
+                os.getenv("DATABASE_URL", "postgresql://expenseuser:expensepass@localhost:5433/expensedb"),
+                min_size=1, max_size=2
+            ) as pool:
+                async with pool.acquire() as conn:
+                    # Update consent status and store encrypted token
+                    await conn.execute(
+                        """
+                        UPDATE aa_consents 
+                        SET status = $1, encrypted_token = $2, updated_at = $3, last_polled_at = $4
+                        WHERE ref_id = $5
+                        """,
+                        AAConsentStatus.ACTIVE.value, encrypted_token, 
+                        datetime.utcnow(), datetime.utcnow(), ref_id
+                    )
+
+                    # Create mock AA accounts
+                    for i in range(num_accounts):
+                        bank = random.choice(banks)
+                        aa_account_id = f"{bank.lower()}_{user_id}_{i+1}"
+                        display_name = f"{bank} Bank Account ****{random.randint(1000, 9999)}"
+
+                        await conn.execute(
+                            """
+                            INSERT INTO aa_accounts (user_id, aa_account_id, display_name, created_at, updated_at)
+                            VALUES ($1, $2, $3, $4, $5)
+                            """,
+                            user_id, aa_account_id, display_name, 
+                            datetime.utcnow(), datetime.utcnow()
+                        )
+
+                        account_ids.append(aa_account_id)
+
+            # Update mock state
+            consent["status"] = "LINKED"
+            consent["accounts"] = account_ids
+            consent["token"] = mock_token
+
+            logger.info(f"✅ Consent {ref_id} linked with {len(account_ids)} accounts")
+
+        except Exception as e:
+            logger.error(f"Failed to simulate consent linking: {e}")
+            raise AAClientError(f"Failed to simulate consent linking: {e}")
+
+    async def fetch_transactions(
         self, 
         account_id: str, 
-        since: datetime,
-        until: Optional[datetime] = None
-    ) -> List[TransactionIn]:
+        since_ts: Optional[datetime] = None, 
+        limit: int = 500
+    ) -> List[Dict[str, Any]]:
         """
-        Fetch transactions for a specific account from the mock AA
-        
-        In production, this would:
-        1. Use consent handle to fetch encrypted FI data
-        2. Decrypt transaction data
-        3. Parse bank-specific formats
-        4. Return standardized transaction objects
-        
+        Fetch transactions from mock data file
+
         Args:
-            account_id: Account identifier from consent
-            since: Fetch transactions from this date
-            until: Fetch transactions until this date (default: now)
-            
+            account_id: AA account identifier
+            since_ts: Fetch transactions since this timestamp
+            limit: Maximum number of transactions to return
+
         Returns:
-            List[TransactionIn]: List of transaction objects
+            List of transaction dictionaries
         """
-        logger.info(f"📊 Fetching transactions for account: {account_id} since {since}")
-        
-        # Simulate API delay
-        await asyncio.sleep(1.0)
-        
-        if until is None:
-            until = datetime.utcnow()
-        
-        transactions = []
-        
-        # Generate 5-15 realistic transactions
-        num_transactions = random.randint(5, 15)
-        
-        for i in range(num_transactions):
-            # Random transaction date within the range
-            days_diff = (until - since).days
-            random_days = random.randint(0, max(1, days_diff))
-            tx_date = since + timedelta(days=random_days)
-            tx_date = tx_date.replace(
-                hour=random.randint(6, 23),
-                minute=random.randint(0, 59),
-                second=random.randint(0, 59),
-                tzinfo=timezone(timedelta(hours=5, minutes=30))  # IST
-            )
-            
-            # Choose random merchant and transaction type
-            merchant, category, amount_range = random.choice(self.mock_merchants)
-            amount = Decimal(random.uniform(amount_range[0], amount_range[1]))
-            amount = round(amount, 2)
-            
-            # Determine transaction type (mostly debits, some credits for salary/interest)
-            tx_type = TransactionType.CREDIT if category in ["salary", "investment"] else TransactionType.DEBIT
-            
-            # Generate unique transaction ID
-            tx_id = f"tx_{account_id}_{uuid.uuid4().hex[:8]}_{i}"
-            
-            transaction = TransactionIn(
-                id=tx_id,
-                ts=tx_date,
-                amount=amount,
-                type=tx_type,
-                raw_desc=f"{merchant} - {tx_date.strftime('%d%m%Y')}",
-                account_id=account_id
-            )
-            
-            transactions.append(transaction)
-        
-        # Sort by date (newest first)
-        transactions.sort(key=lambda x: x.ts, reverse=True)
-        
-        logger.info(f"✅ Generated {len(transactions)} mock transactions for {account_id}")
-        return transactions
+        try:
+            # Load mock transactions from file
+            transactions = self._load_mock_transactions()
+
+            # Filter by account_id if specified in mock data
+            if account_id:
+                transactions = [tx for tx in transactions if tx.get("account_id") == account_id]
+
+            # Filter by timestamp if provided
+            if since_ts:
+                filtered_transactions = []
+                for tx in transactions:
+                    tx_time = datetime.fromisoformat(tx["ts"].replace("Z", "+00:00"))
+                    if tx_time >= since_ts:
+                        filtered_transactions.append(tx)
+                transactions = filtered_transactions
+
+            # Apply limit
+            transactions = transactions[:limit]
+
+            # Simulate API delay
+            await asyncio.sleep(0.5)
+
+            logger.info(f"📊 Fetched {len(transactions)} transactions for account {account_id}")
+
+            return transactions
+
+        except Exception as e:
+            logger.error(f"Failed to fetch transactions: {e}")
+            raise AAClientError(f"Failed to fetch transactions: {e}")
+
+    def _load_mock_transactions(self) -> List[Dict[str, Any]]:
+        """Load transactions from mock data file"""
+        try:
+            if not os.path.exists(self.mock_data_file):
+                logger.warning(f"Mock data file not found: {self.mock_data_file}")
+                return []
+
+            with open(self.mock_data_file, 'r') as f:
+                data = json.load(f)
+                return data.get("sample_transactions", [])
+
+        except Exception as e:
+            logger.error(f"Failed to load mock transactions: {e}")
+            return []
+
+    async def simulate_webhook_delivery(
+        self, 
+        account_id: str, 
+        transaction: Dict[str, Any]
+    ) -> bool:
+        """
+        Simulate webhook delivery by posting to local /aa/webhook endpoint
+
+        Args:
+            account_id: Account identifier
+            transaction: Transaction data
+
+        Returns:
+            bool: Success status
+        """
+        try:
+            # Prepare webhook payload
+            payload = {
+                "event": "transaction.created",
+                "account_id": account_id,
+                "transaction": transaction,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+            # Generate signature
+            signature = self._generate_webhook_signature(payload)
+
+            # Local webhook URL (adjust based on your setup)
+            webhook_url = "http://localhost:8000/aa/webhook"
+
+            headers = {
+                "Content-Type": "application/json",
+                "X-AA-Signature": signature,
+                "User-Agent": "Mock-AA-Client/1.0"
+            }
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    webhook_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=10.0
+                )
+
+                if response.status_code == 200:
+                    logger.info(f"📡 Webhook delivered successfully for account {account_id}")
+                    return True
+                else:
+                    logger.warning(f"Webhook delivery failed: {response.status_code}")
+                    return False
+
+        except Exception as e:
+            logger.error(f"Failed to deliver webhook: {e}")
+            return False
+
+    def _generate_webhook_signature(self, payload: Dict[str, Any]) -> str:
+        """Generate HMAC signature for webhook payload"""
+        payload_str = json.dumps(payload, sort_keys=True, separators=(',', ':'))
+        signature = hmac.new(
+            self.webhook_secret.encode('utf-8'),
+            payload_str.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        return f"sha256={signature}"
+
+
+class RealAAClient:
+    """
+    Real Account Aggregator client placeholder.
+
+    This would implement actual AA provider integration (Setu/Finvu).
+    Currently raises NotImplementedError as requested.
+    """
+
+    def __init__(self):
+        self.base_url = os.getenv("AA_BASE_URL", "")
+        self.api_key = os.getenv("AA_API_KEY", "")
+        self.secret = os.getenv("AA_SECRET", "")
+
+        if not all([self.base_url, self.api_key, self.secret]):
+            logger.warning("Real AA configuration incomplete")
+
+    async def start_consent(self, user_id: str) -> Dict[str, str]:
+        """Start real AA consent flow"""
+        raise NotImplementedError("Real AA client not configured")
+
+    async def poll_consent_status(self, ref_id: str) -> str:
+        """Poll real AA consent status"""
+        raise NotImplementedError("Real AA client not configured")
+
+    async def fetch_transactions(
+        self, 
+        account_id: str, 
+        since_ts: Optional[datetime] = None, 
+        limit: int = 500
+    ) -> List[Dict[str, Any]]:
+        """Fetch real AA transactions"""
+        raise NotImplementedError("Real AA client not configured")
+
+    async def simulate_webhook_delivery(
+        self, 
+        account_id: str, 
+        transaction: Dict[str, Any]
+    ) -> bool:
+        """Real AA doesn't simulate webhooks"""
+        raise NotImplementedError("Real AA client not configured")
+
+
+class AAClient:
+    """
+    Main AA Client wrapper with environment toggle.
+
+    Automatically switches between mock and real implementation based on
+    the is_real_aa() configuration function.
+    """
+
+    def __init__(self):
+        if is_real_aa():
+            self._client = RealAAClient()
+            logger.info("🏦 Using Real AA Client")
+        else:
+            self._client = MockAAClient()
+            logger.info("🎭 Using Mock AA Client")
+
+    async def start_consent(self, user_id: str) -> Dict[str, str]:
+        """
+        Start AA consent flow
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            Dict containing consent_url and ref_id
+        """
+        return await self._client.start_consent(user_id)
+
+    async def poll_consent_status(self, ref_id: str) -> str:
+        """
+        Poll consent status
+
+        Args:
+            ref_id: Consent reference ID
+
+        Returns:
+            str: Status - "PENDING", "LINKED", "EXPIRED", etc.
+        """
+        return await self._client.poll_consent_status(ref_id)
+
+    async def fetch_transactions(
+        self, 
+        account_id: str, 
+        since_ts: Optional[datetime] = None, 
+        limit: int = 500
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch transactions for account
+
+        Args:
+            account_id: AA account identifier
+            since_ts: Fetch transactions since this timestamp
+            limit: Maximum number of transactions to return
+
+        Returns:
+            List of transaction dictionaries
+        """
+        return await self._client.fetch_transactions(account_id, since_ts, limit)
+
+    async def simulate_webhook_delivery(
+        self, 
+        account_id: str, 
+        transaction: Dict[str, Any]
+    ) -> bool:
+        """
+        Simulate webhook delivery (mock only)
+
+        Args:
+            account_id: Account identifier
+            transaction: Transaction data
+
+        Returns:
+            bool: Success status
+        """
+        return await self._client.simulate_webhook_delivery(account_id, transaction)
+
+
+# Helper functions
+
+def mock_generate_sample_transactions(account_id: str, n: int) -> List[Dict[str, Any]]:
+    """
+    Generate sample transactions for testing
+
+    Args:
+        account_id: Account identifier
+        n: Number of transactions to generate
+
+    Returns:
+        List of transaction dictionaries
+    """
+    transactions = []
+
+    merchants = [
+        ("SWIGGY*ORDER", "debit", (150, 500)),
+        ("AMAZON PAY", "debit", (200, 2000)),
+        ("UBER TRIP", "debit", (80, 300)),
+        ("NETFLIX", "debit", (199, 799)),
+        ("SALARY CREDIT", "credit", (30000, 80000)),
+        ("ATM WITHDRAWAL", "debit", (500, 5000)),
+        ("FLIPKART", "debit", (300, 1500)),
+        ("ELECTRICITY BILL", "debit", (800, 3000)),
+        ("DIVIDEND CREDIT", "credit", (1000, 5000))
+    ]
+
+    for i in range(n):
+        merchant, tx_type, amount_range = random.choice(merchants)
+        amount = round(random.uniform(amount_range[0], amount_range[1]), 2)
+
+        # Generate timestamp within last 30 days
+        days_ago = random.randint(0, 30)  
+        hours_ago = random.randint(0, 23)
+        minutes_ago = random.randint(0, 59)
+
+        timestamp = datetime.utcnow() - timedelta(
+            days=days_ago, 
+            hours=hours_ago, 
+            minutes=minutes_ago
+        )
+
+        transaction = {
+            "id": f"tx_generated_{account_id}_{i+1:03d}",
+            "ts": timestamp.isoformat() + "+05:30",
+            "amount": amount,
+            "type": tx_type,
+            "raw_desc": f"{merchant}-{random.randint(100000, 999999)}",
+            "account_id": account_id
+        }
+
+        transactions.append(transaction)
+
+    # Sort by timestamp (newest first)
+    transactions.sort(key=lambda x: x["ts"], reverse=True)
+
+    return transactions
+
 
 # Global client instance
-aa_client = SetuSandboxClient()
+aa_client = AAClient()
