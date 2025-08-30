@@ -11,7 +11,12 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { askQuestion } from '../services/api';
+import { askQuestion, testConnection, diagnosticNetworkTest } from '../services/api';
+
+// Helper function to format time
+const formatTime = () => {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 const MessageBubble = ({ message, isUser }) => {
   return (
@@ -39,20 +44,17 @@ const ChatScreen = () => {
   const [messages, setMessages] = useState([
     {
       id: '1',
-      text: 'Hello! I can help you with questions about your expenses and transactions. What would you like to know?',
+      text: 'Hi! I can help you analyze your spending patterns. Try asking "How much did I spend on food?" or "What\'s my total spending?"',
       isUser: false,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: formatTime(),
     },
   ]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const formatTime = () => {
-    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
+  // Enhanced send message function with better error handling
   const sendMessage = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || loading) return;
 
     const userMessage = {
       id: Date.now().toString(),
@@ -66,7 +68,9 @@ const ChatScreen = () => {
     setLoading(true);
 
     try {
+      console.log('🚀 Sending question to API...');
       const response = await askQuestion(inputText.trim());
+      console.log('✅ Got response:', response);
 
       const botMessage = {
         id: (Date.now() + 1).toString(),
@@ -77,16 +81,70 @@ const ChatScreen = () => {
 
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', error);
       const errorMessage = {
         id: (Date.now() + 1).toString(),
-        text: 'Sorry, I\'m having trouble connecting to the server. Please try again later.',
+        text: `Sorry, I encountered an error: ${error.message}. Please check your connection and try again.`,
         isUser: false,
         timestamp: formatTime(),
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Enhanced test connection function with diagnostics
+  const handleTestConnection = async () => {
+    const testMessage = {
+      id: Date.now().toString(),
+      text: '🔍 Running network diagnostics...',
+      isUser: false,
+      timestamp: formatTime(),
+    };
+    setMessages(prev => [...prev, testMessage]);
+
+    try {
+      const results = await diagnosticNetworkTest();
+
+      let resultText = '📊 Network Diagnostic Results:\n';
+      results.forEach(result => {
+        const icon = result.success ? '✅' : '❌';
+        resultText += `${icon} ${result.test}: ${result.details}\n`;
+      });
+
+      const resultMessage = {
+        id: (Date.now() + 1).toString(),
+        text: resultText.trim(),
+        isUser: false,
+        timestamp: formatTime(),
+      };
+      setMessages(prev => [...prev, resultMessage]);
+
+    } catch (error) {
+      const errorMessage = {
+        id: (Date.now() + 2).toString(),
+        text: `❌ Connection test error: ${error.message}`,
+        isUser: false,
+        timestamp: formatTime(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+
+  // Simple connection test function (for quick testing)
+  const handleQuickTest = async () => {
+    try {
+      const isConnected = await testConnection();
+      const resultMessage = {
+        id: Date.now().toString(),
+        text: isConnected ? '✅ Quick test: Server is reachable!' : '❌ Quick test: Server not reachable.',
+        isUser: false,
+        timestamp: formatTime(),
+      };
+      setMessages(prev => [...prev, resultMessage]);
+    } catch (error) {
+      console.error('Quick test failed:', error);
     }
   };
 
@@ -99,6 +157,21 @@ const ChatScreen = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Financial Assistant</Text>
+        <TouchableOpacity 
+          style={styles.testButton}
+          onPress={handleTestConnection}
+        >
+          <Text style={styles.testButtonText}>Diagnostics</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.testButton, { marginLeft: 8 }]}
+          onPress={handleQuickTest}
+        >
+          <Text style={styles.testButtonText}>Quick Test</Text>
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={messages}
         renderItem={renderMessage}
@@ -110,7 +183,7 @@ const ChatScreen = () => {
       {loading && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color="#007AFF" />
-          <Text style={styles.loadingText}>Thinking...</Text>
+          <Text style={styles.loadingText}>Analyzing your finances...</Text>
         </View>
       )}
 
@@ -145,6 +218,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#007AFF',
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  testButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  testButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   messagesList: {
     flex: 1,
