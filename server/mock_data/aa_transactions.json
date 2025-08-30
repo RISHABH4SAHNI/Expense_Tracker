@@ -1,0 +1,184 @@
+{
+  "sample_transactions": [
+    {
+      "id": "tx_mock_001",
+      "ts": "2024-08-30T10:30:00+05:30",
+      "amount": 1299.00,
+      "type": "debit",
+      "raw_desc": "UPI-AMZN PAY INDIA-AMAZON SHOPPING-UPI REF NO 324567890123",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "AMAZON"
+    },
+    {
+      "id": "tx_mock_002", 
+      "ts": "2024-08-29T14:20:00+05:30",
+      "amount": 385.50,
+      "type": "debit",
+      "raw_desc": "UPI-ZOMATO LIMITED-FOOD DELIVERY-UPI REF NO 445567890234",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "ZOMATO"
+    },
+    {
+      "id": "tx_mock_003",
+      "ts": "2024-08-28T09:15:00+05:30", 
+      "amount": 3200.00,
+      "type": "debit",
+      "raw_desc": "IMPS-BPCL-BHARAT PETROLEUM FUEL-TXN ID 887766554433",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "BPCL"
+    },
+    {
+      "id": "tx_mock_004",
+      "ts": "2024-08-27T16:45:00+05:30",
+      "amount": 25000.00,
+      "type": "debit", 
+      "raw_desc": "UPI-LIC OF INDIA-PREMIUM PAYMENT-UPI REF NO 556677889900",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "LIC"
+    },
+    {
+      "id": "tx_mock_005",
+      "ts": "2024-08-26T11:30:00+05:30",
+      "amount": 85000.00,
+      "type": "credit",
+      "raw_desc": "SALARY CREDIT-TECH MAHINDRA-AUGUST 2024",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "SALARY CREDIT"
+    },
+    {
+      "id": "tx_mock_006",
+      "ts": "2024-08-25T15:20:00+05:30",
+      "amount": 299.00,
+      "type": "credit",
+      "raw_desc": "UPI-SWIGGY-REFUND ORDER ID SW789-UPI REF NO 667788990011",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "REFUND"
+    },
+    {
+      "id": "tx_mock_007",
+      "ts": "2024-08-24T18:45:00+05:30",
+      "amount": 1499.00,
+      "type": "debit",
+      "raw_desc": "UPI-NETFLIX INDIA-SUBSCRIPTION PREMIUM-UPI REF NO 778899001122",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "NETFLIX"
+    },
+    {
+      "id": "tx_mock_008",
+      "ts": "2024-08-23T12:10:00+05:30",
+      "amount": 5500.00,
+      "type": "credit",
+      "raw_desc": "EXPENSE REIMBURSEMENT-COMPANY TRAVEL CLAIM",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "REIMBURSEMENT"
+    },
+    {
+      "id": "tx_mock_009",
+      "ts": "2024-08-22T20:30:00+05:30",
+      "amount": 2800.00,
+      "type": "debit",
+      "raw_desc": "UPI-BOOKMYSHOW-MOVIE TICKETS RRR-UPI REF NO 889900112233",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "BOOKMYSHOW"
+    },
+    {
+      "id": "tx_mock_010",
+      "ts": "2024-08-21T08:15:00+05:30",
+      "amount": 65000.00,
+      "type": "credit",
+      "raw_desc": "FD INTEREST CREDIT-HDFC BANK FD MATURITY",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "FD INTEREST" 
+    },
+    {
+      "id": "tx_mock_011",
+      "ts": "2024-08-20T13:25:00+05:30",
+      "amount": 149.00,
+      "type": "debit",
+      "raw_desc": "UPI-SPOTIFY INDIA-MONTHLY SUBSCRIPTION-UPI REF NO 990011223344",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "SPOTIFY"
+    },
+    {
+      "id": "tx_mock_012",
+      "ts": "2024-08-19T16:40:00+05:30",
+      "amount": 750.00,
+      "type": "debit",
+      "raw_desc": "IMPS-APOLLO PHARMACY-MEDICINES PURCHASE-TXN ID 112233445566",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "APOLLO"
+    },
+    {
+      "id": "tx_mock_013",
+      "ts": "2024-08-18T09:50:00+05:30",
+      "amount": 4200.00,
+      "type": "debit",
+      "raw_desc": "UPI-RELIANCE FRESH-GROCERY SHOPPING-UPI REF NO 223344556677",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "RELIANCE"
+    },
+    {
+      "id": "tx_mock_014",
+      "ts": "2024-08-17T17:30:00+05:30",
+      "amount": 180.00,
+      "type": "debit",
+      "raw_desc": "UPI-OLA CABS-RIDE BLR TO AIRPORT-UPI REF NO 334455667788",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "OLA"
+    },
+    {
+      "id": "tx_mock_015",
+      "ts": "2024-08-16T11:15:00+05:30",
+      "amount": 199.00,
+      "type": "debit",
+      "raw_desc": "AUTO DEBIT-ADOBE CREATIVE CLOUD-MONTHLY PLAN",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "ADOBE"
+    },
+    {
+      "id": "tx_mock_016",
+      "ts": "2024-08-15T14:45:00+05:30",
+      "amount": 1299.00,
+      "type": "debit",
+      "raw_desc": "IMPS-AIRTEL PAYMENTS BANK-DTH RECHARGE-TXN ID 445566778899",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "AIRTEL"
+    },
+    {
+      "id": "tx_mock_017",
+      "ts": "2024-08-14T19:20:00+05:30",
+      "amount": 8500.00,
+      "type": "debit", 
+      "raw_desc": "UPI-BIG BAZAAR-MONTHLY GROCERY-UPI REF NO 556677889911",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "BIG BAZAAR"
+    },
+    {
+      "id": "tx_mock_018",
+      "ts": "2024-08-13T10:35:00+05:30",
+      "amount": 450.00,
+      "type": "credit",
+      "raw_desc": "UPI-PAYTM-CASHBACK REWARDS-UPI REF NO 667788990022",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "CASHBACK"
+    },
+    {
+      "id": "tx_mock_019",
+      "ts": "2024-08-12T15:55:00+05:30",
+      "amount": 12500.00,
+      "type": "debit",
+      "raw_desc": "NEFT-SBI MUTUAL FUND-SIP INVESTMENT-TXN ID 778899001133",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "SIP"
+    },
+    {
+      "id": "tx_mock_020",
+      "ts": "2024-08-11T21:10:00+05:30",
+      "amount": 299.00,
+      "type": "debit",
+      "raw_desc": "UPI-SWIGGY ONE-MEMBERSHIP RENEWAL-UPI REF NO 889900112244",
+      "account_id": "hdfc_user_1",
+      "merchant_hint": "SWIGGY"
+    }
+  ]
+}

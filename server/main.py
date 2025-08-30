@@ -7,13 +7,15 @@ import asyncpg
 import redis.asyncio as redis
 import logging
 
-from app.routes import transactions, qa, auth
+from app.routes import transactions, qa, auth, aa, aa_admin
 from app.database import get_db, init_db, close_db
 import os
+
 
 # Global connections
 db_pool = None
 redis_client = None
+from app.routes import sync
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -71,9 +73,12 @@ async def lifespan(app: FastAPI):
         # Pass Redis client to modules that need it
         from app.routes.transactions import set_redis_client as set_transactions_redis
         from app.routes.auth import set_redis_client as set_auth_redis
+        from app.services.sync import set_redis_client as set_sync_redis
+        from app.workers.aa_worker import AAWorker
 
         set_transactions_redis(redis_client)
         set_auth_redis(redis_client)
+        set_sync_redis(redis_client)
 
     except Exception as e:
         logger.warning(f"Redis connection failed: {e}")
@@ -147,6 +152,7 @@ async def auth_status(request: Request):
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
+app.include_router(aa.router)  # AA router already has /aa prefix
 app.include_router(qa.router, prefix="/qa", tags=["qa"])
 
 # Import and include jobs router

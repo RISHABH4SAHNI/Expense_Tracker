@@ -12,6 +12,7 @@ bcrypt==4.1.2
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]==3.3.0
 sqlalchemy[asyncio]==2.0.23
+cryptography==41.0.7
 email-validator==2.1.0
 
 # Embeddings and ML dependencies
@@ -22,3 +23,6 @@ sentence-transformers==2.2.2
 pytest==7.4.3
 pytest-asyncio==0.21.1
 rq==1.15.1
+
+# Scheduling
+apscheduler==3.10.4
