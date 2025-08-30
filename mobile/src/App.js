@@ -2,33 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { Alert, View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import screens
-import HomeScreen from './src/screens/HomeScreen';
-import TransactionsScreen from './src/screens/TransactionsScreen';
-import ChatScreen from './src/screens/ChatScreen';
+import HomeScreen from './screens/HomeScreen';
+import TransactionsScreen from './screens/TransactionsScreen';
+import ChatScreen from './screens/ChatScreen';
 
 // Import storage service
-import { initDatabase } from './src/services/storage';
-
-// Simple icons using text
-const TabIcon = ({ name, focused }) => {
-  const getIcon = () => {
-    switch (name) {
-      case 'Home':
-        return focused ? '🏠' : '🏡';
-      case 'Transactions':
-        return focused ? '💰' : '💸';
-      case 'Chat':
-        return focused ? '💬' : '💭';
-      default:
-        return '📱';
-    }
-  };
-  
-  return getIcon();
-};
+import { initDatabase } from './services/storage';
 
 const Tab = createBottomTabNavigator();
 
@@ -45,7 +28,6 @@ const App = () => {
       } catch (error) {
         console.error('Error initializing database:', error);
         setDbError(error.message);
-        // Don't block the app, just show error
         setIsDbReady(true);
       }
     };
@@ -68,9 +50,19 @@ const App = () => {
       <NavigationContainer>
         <Tab.Navigator
           screenOptions={({ route }) => ({
-            tabBarIcon: ({ focused }) => (
-              <TabIcon name={route.name} focused={focused} />
-            ),
+            tabBarIcon: ({ focused, color, size }) => {
+              let iconName;
+
+              if (route.name === 'Home') {
+                iconName = focused ? 'home' : 'home-outline';
+              } else if (route.name === 'Transactions') {
+                iconName = focused ? 'card' : 'card-outline';
+              } else if (route.name === 'Chat') {
+                iconName = focused ? 'chatbubble' : 'chatbubble-outline';
+              }
+
+              return <Ionicons name={iconName} size={size} color={color} />;
+            },
             tabBarActiveTintColor: '#007AFF',
             tabBarInactiveTintColor: 'gray',
             headerStyle: {
@@ -82,14 +74,42 @@ const App = () => {
             },
           })}
         >
-          <Tab.Screen name="Home" component={HomeScreen} />
-          <Tab.Screen name="Transactions" component={TransactionsScreen} />
-          <Tab.Screen name="Chat" component={ChatScreen} />
+          <Tab.Screen 
+            name="Home" 
+            component={HomeScreen}
+            options={{
+              tabBarLabel: 'Home',
+            }}
+          />
+          <Tab.Screen 
+            name="Transactions" 
+            component={TransactionsScreen}
+            options={{
+              tabBarLabel: 'Transactions',
+            }}
+          />
+          <Tab.Screen 
+            name="Chat" 
+            component={ChatScreen}
+            options={{
+              tabBarLabel: 'Chat',
+            }}
+          />
         </Tab.Navigator>
       </NavigationContainer>
       {dbError && (
-        <View style={{ position: 'absolute', top: 100, left: 20, right: 20, backgroundColor: '#ffebee', padding: 10, borderRadius: 5 }}>
-          <Text style={{ color: '#c62828', fontSize: 12 }}>Database Warning: {dbError}</Text>
+        <View style={{ 
+          position: 'absolute', 
+          top: 100, 
+          left: 20, 
+          right: 20, 
+          backgroundColor: '#ffebee', 
+          padding: 10, 
+          borderRadius: 5 
+        }}>
+          <Text style={{ color: '#c62828', fontSize: 12 }}>
+            Database Warning: {dbError}
+          </Text>
         </View>
       )}
     </>

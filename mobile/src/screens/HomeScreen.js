@@ -24,10 +24,10 @@ const HomeScreen = () => {
     try {
       setLoading(true);
       const transactions = await getTransactions();
-
+      
       let totalIncome = 0;
       let totalExpense = 0;
-
+      
       transactions.forEach(transaction => {
         if (transaction.type === 'income') {
           totalIncome += transaction.amount;
@@ -35,7 +35,7 @@ const HomeScreen = () => {
           totalExpense += transaction.amount;
         }
       });
-
+      
       setMoneyIn(totalIncome);
       setMoneyOut(totalExpense);
     } catch (error) {
@@ -72,7 +72,7 @@ const HomeScreen = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Expense Tracker</Text>
-
+      
       <View style={styles.summaryContainer}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Money In</Text>
@@ -80,7 +80,7 @@ const HomeScreen = () => {
             ${moneyIn.toFixed(2)}
           </Text>
         </View>
-
+        
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Money Out</Text>
           <Text style={[styles.summaryAmount, styles.expenseText]}>
@@ -88,7 +88,7 @@ const HomeScreen = () => {
           </Text>
         </View>
       </View>
-
+      
       <View style={styles.netContainer}>
         <Text style={styles.netLabel}>Net Balance</Text>
         <Text style={[
@@ -98,7 +98,7 @@ const HomeScreen = () => {
           ${(moneyIn - moneyOut).toFixed(2)}
         </Text>
       </View>
-
+      
       <TouchableOpacity
         style={styles.syncButton}
         onPress={handleSync}
@@ -107,7 +107,7 @@ const HomeScreen = () => {
         {syncing ? (
           <ActivityIndicator size="small" color="#FFFFFF" />
         ) : (
-          <Text style={styles.syncButtonText}>Sync</Text>
+          <Text style={styles.syncButtonText}>Sync with Server</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -201,15 +201,13 @@ const styles = StyleSheet.create({
   syncButton: {
     backgroundColor: '#007AFF',
     paddingVertical: 15,
-    paddingHorizontal: 30,
+    paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
-    alignSelf: 'center',
-    minWidth: 120,
   },
   syncButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
 });

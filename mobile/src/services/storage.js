@@ -1,81 +1,31 @@
-import * as SQLite from 'expo-sqlite';
+/**
+ * Storage service - high-level wrapper around the database
+ * This maintains backward compatibility while using the new database wrapper
+ */
 
-let db = null;
+import {
+  initDB as initDatabase,
+  insertTransaction,
+  getTransactions as getTransactionsFromDB,
+  getStats
+} from '../storage/db';
 
-// Initialize the database
-const initDatabase = async () => {
-  try {
-    db = await SQLite.openDatabaseAsync('expense_tracker.db');
-    
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        amount REAL NOT NULL,
-        description TEXT,
-        category TEXT,
-        type TEXT CHECK(type IN ('income', 'expense')) NOT NULL,
-        date TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    
-    console.log('Database initialized successfully');
-  } catch (error) {
-    console.error('Error initializing database:', error);
-    throw error;
-  }
-};
+// Re-export initDatabase for backward compatibility
+const initDB = initDatabase;
 
 // Get all transactions
 const getTransactions = async () => {
   try {
-    if (!db) {
-      await initDatabase();
-    }
-    
-    const result = await db.getAllAsync(
-      'SELECT * FROM transactions ORDER BY date DESC, created_at DESC'
-    );
-    
-    return result || [];
+    return await getTransactionsFromDB();
   } catch (error) {
     console.error('Error getting transactions:', error);
     throw error;
   }
 };
 
-// Add a new transaction
+// Add a new transaction (wrapper for backward compatibility)
 const addTransaction = async (transaction) => {
-  try {
-    if (!db) {
-      await initDatabase();
-    }
-    
-    const result = await db.runAsync(
-      'INSERT INTO transactions (amount, description, category, type, date) VALUES (?, ?, ?, ?, ?)',
-      [transaction.amount, transaction.description, transaction.category, transaction.type, transaction.date]
-    );
-    
-    return result.lastInsertRowId;
-  } catch (error) {
-    console.error('Error adding transaction:', error);
-    throw error;
-  }
+  return await insertTransaction(transaction);
 };
 
-// Clear all transactions
-const clearTransactions = async () => {
-  try {
-    if (!db) {
-      await initDatabase();
-    }
-    
-    await db.runAsync('DELETE FROM transactions');
-    console.log('All transactions cleared');
-  } catch (error) {
-    console.error('Error clearing transactions:', error);
-    throw error;
-  }
-};
-
-export { initDatabase, getTransactions, addTransaction, clearTransactions };
+export { initDB as initDatabase, getTransactions, addTransaction };
