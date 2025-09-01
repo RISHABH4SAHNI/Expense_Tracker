@@ -11,7 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { askQuestion, testConnection, diagnosticNetworkTest } from '../services/api';
+import { askQuestion, askAdvancedInsights, testConnection, diagnosticNetworkTest } from '../services/api';
 
 // Helper function to format time
 const formatTime = () => {
@@ -44,13 +44,14 @@ const ChatScreen = () => {
   const [messages, setMessages] = useState([
     {
       id: '1',
-      text: 'Hi! I can help you analyze your spending patterns. Try asking "How much did I spend on food?" or "What\'s my total spending?"',
+      text: 'Hi! I can help you analyze your spending patterns with advanced AI insights. Try asking "How much did I spend on food?" or "What\'s my total spending?"\n\n💡 Tip: I now use advanced ML models for better analysis!',
       isUser: false,
       timestamp: formatTime(),
     },
   ]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [useAdvancedInsights, setUseAdvancedInsights] = useState(true);
 
   // Enhanced send message function with better error handling
   const sendMessage = async () => {
@@ -68,13 +69,43 @@ const ChatScreen = () => {
     setLoading(true);
 
     try {
-      console.log('🚀 Sending question to API...');
-      const response = await askQuestion(inputText.trim());
-      console.log('✅ Got response:', response);
+      let response;
+
+      if (useAdvancedInsights) {
+        console.log('🧠 Sending question to Advanced Insights Engine...');
+        response = await askAdvancedInsights(inputText.trim(), {
+          timeRangeDays: 30,
+          includeSupportingData: true,
+          maxTransactions: 5
+        });
+        console.log('✅ Got advanced insights response:', response);
+      } else {
+        console.log('🚀 Sending question to Basic QA...');
+        response = await askQuestion(inputText.trim());
+        console.log('✅ Got basic response:', response);
+      }
+
+      let botMessageText = response.answer || response.message || 'I received your question but couldn\'t generate a response.';
+
+      // Add confidence and execution time for advanced insights
+      if (useAdvancedInsights && response.confidence !== undefined) {
+        botMessageText += `\n\n📊 Confidence: ${Math.round(response.confidence * 100)}%`;
+        if (response.execution_time_ms) {
+          botMessageText += ` • ${response.execution_time_ms.toFixed(0)}ms`;
+        }
+
+        // Add supporting transactions if available
+        if (response.supporting_transactions && response.supporting_transactions.length > 0) {
+          botMessageText += `\n\n📋 Recent transactions:`;
+          response.supporting_transactions.slice(0, 3).forEach(tx => {
+            botMessageText += `\n• ₹${tx.amount?.toLocaleString('en-IN')} at ${tx.merchant || 'Unknown'}`;
+          });
+        }
+      }
 
       const botMessage = {
         id: (Date.now() + 1).toString(),
-        text: response.answer || response.message || 'I received your question but couldn\'t generate a response.',
+        text: botMessageText,
         isUser: false,
         timestamp: formatTime(),
       };
@@ -164,6 +195,14 @@ const ChatScreen = () => {
           onPress={handleTestConnection}
         >
           <Text style={styles.testButtonText}>Diagnostics</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.testButton, { marginLeft: 8 }]}
+          onPress={() => setUseAdvancedInsights(!useAdvancedInsights)}
+        >
+          <Text style={styles.testButtonText}>
+            {useAdvancedInsights ? '🧠 Advanced' : '💬 Basic'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.testButton, { marginLeft: 8 }]}

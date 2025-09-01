@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 
 // API configuration
 const getApiHost = () => {
-  return '192.168.1.246'; // Use your computer's IP address for physical device testing
+  return '192.168.1.251'; // Use your computer's IP address for physical device testing
 };
 
 const API_HOST = getApiHost();

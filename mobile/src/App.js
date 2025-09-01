@@ -11,6 +11,7 @@ import HomeScreen from './screens/HomeScreen';
 import TransactionsScreen from './screens/TransactionsScreen';
 import ChatScreen from './screens/ChatScreen';
 import BankLinkScreen from './screens/BankLinkScreen';
+import InsightsScreen from './screens/InsightsScreen';
 
 // Import auth screens
 import LoginScreen from './screens/LoginScreen';
@@ -56,6 +57,8 @@ const AppStack = () => {
             iconName = focused ? 'card' : 'card-outline';
           } else if (route.name === 'BankLink') {
             iconName = focused ? 'link' : 'link-outline';
+          } else if (route.name === 'Insights') {
+            iconName = focused ? 'analytics' : 'analytics-outline';
           } else if (route.name === 'Chat') {
             iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           }
@@ -94,6 +97,13 @@ const AppStack = () => {
         options={{
           tabBarLabel: 'Link Bank',
           headerTitle: 'Bank Linking',
+        }}
+      />
+      <Tab.Screen 
+        name="Insights" 
+        component={InsightsScreen}
+        options={{
+          tabBarLabel: 'Insights',
         }}
       />
       <Tab.Screen 
