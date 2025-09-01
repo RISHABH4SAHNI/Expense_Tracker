@@ -225,12 +225,6 @@ const InsightsScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Financial Insights</Text>
-        <Text style={styles.headerSubtitle}>AI-powered spending analysis</Text>
-      </View>
-
       {/* Anomalies Section */}
       {renderAnomalyCard()}
 
@@ -279,21 +273,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
-  },
-  header: {
-    padding: 20,
-    backgroundColor: '#007AFF',
-    paddingTop: 60,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
   },
   section: {
     padding: 20,

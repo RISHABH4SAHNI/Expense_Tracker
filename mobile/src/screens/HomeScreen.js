@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { getTransactions } from '../services/storage';
+import { TransactionForm } from '../components/transactions';
+import { addTransaction } from '../services/transactions/transactionService';
 import { syncTransactions } from '../services/api';
 
 const HomeScreen = () => {
@@ -15,6 +17,8 @@ const HomeScreen = () => {
   const [moneyOut, setMoneyOut] = useState(0);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     loadTransactionSummary();
@@ -43,6 +47,23 @@ const HomeScreen = () => {
       Alert.alert('Error', 'Failed to load transaction summary');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQuickAdd = () => {
+    setShowAddForm(true);
+  };
+
+  const handleAddTransaction = async (transactionData) => {
+    try {
+      console.log('🔄 Adding transaction from HomeScreen:', transactionData);
+      await addTransaction(transactionData, 'manual');
+      setRefreshTrigger(prev => prev + 1);
+      await loadTransactionSummary(); // Refresh home screen data
+      console.log('✅ Transaction added successfully');
+    } catch (error) {
+      console.error('❌ Error in HomeScreen handleAddTransaction:', error);
+      throw error; // Re-throw to let TransactionForm handle it
     }
   };
 
@@ -142,6 +163,11 @@ const HomeScreen = () => {
     }
   };
 
+  // Refresh data when refreshTrigger changes
+  useEffect(() => {
+    loadTransactionSummary();
+  }, [refreshTrigger]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -152,21 +178,22 @@ const HomeScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <>
+      <View style={styles.container}>
       <Text style={styles.title}>Expense Tracker</Text>
       
       <View style={styles.summaryContainer}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Money In</Text>
           <Text style={[styles.summaryAmount, styles.incomeText]}>
-            ${moneyIn.toFixed(2)}
+            ₹{moneyIn.toFixed(2)}
           </Text>
         </View>
         
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Money Out</Text>
           <Text style={[styles.summaryAmount, styles.expenseText]}>
-            ${moneyOut.toFixed(2)}
+            ₹{moneyOut.toFixed(2)}
           </Text>
         </View>
       </View>
@@ -177,8 +204,19 @@ const HomeScreen = () => {
           styles.netAmount,
           (moneyIn - moneyOut) >= 0 ? styles.incomeText : styles.expenseText
         ]}>
-          ${(moneyIn - moneyOut).toFixed(2)}
+          ₹{(moneyIn - moneyOut).toFixed(2)}
         </Text>
+      </View>
+
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity
+          style={styles.quickAddButton}
+          onPress={handleQuickAdd}
+        >
+          <Text style={styles.quickAddButtonText}>+ Quick Add</Text>
+        </TouchableOpacity>
+
+        <View style={styles.spacer} />
       </View>
       
       <TouchableOpacity
@@ -193,6 +231,13 @@ const HomeScreen = () => {
         )}
       </TouchableOpacity>
     </View>
+
+      <TransactionForm
+        visible={showAddForm}
+        onClose={() => setShowAddForm(false)}
+        onSubmit={handleAddTransaction}
+      />
+    </>
   );
 };
 
@@ -279,6 +324,26 @@ const styles = StyleSheet.create({
   netAmount: {
     fontSize: 32,
     fontWeight: 'bold',
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  quickAddButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    flex: 1,
+  },
+  quickAddButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  spacer: {
+    width: 10,
   },
   syncButton: {
     backgroundColor: '#007AFF',

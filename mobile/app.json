@@ -1,8 +1,10 @@
 {
   "expo": {
-    "name": "ExpenseTrackerTest",
-    "slug": "ExpenseTrackerTest",
+    "main": "index.js",
+    "name": "ExpenseTracker",
+    "slug": "expense-tracker",
     "version": "1.0.0",
+    "scheme": "expensetracker",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -12,21 +14,42 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rishabh.ExpenseTracker",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "This app uses Face ID for secure authentication.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.rishabh.ExpenseTracker",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8c510b06-e78c-4b17-b42c-2eb23046aec7"
+      }
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-font"
     ]
   }
 }

@@ -128,7 +128,7 @@ const initDB = async () => {
     // Open database
     db = await SQLite.openDatabaseAsync(DATABASE_NAME);
     
-    // Enable foreign keys and WAL mode for better performance
+    // Enable foreign keys and WAL mode
     await db.execAsync('PRAGMA foreign_keys = ON;');
     await db.execAsync('PRAGMA journal_mode = WAL;');
     
@@ -141,13 +141,15 @@ const initDB = async () => {
         category TEXT,
         type TEXT CHECK(type IN ('income', 'expense')) NOT NULL,
         date TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        merchant TEXT DEFAULT "",
+        account_id TEXT,
+        transaction_id TEXT,
+        metadata TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
-    // Perform database migrations (add missing columns)
-    await migrateDatabase();
-    
+
     // Create merchant overrides table
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS merchant_overrides (
@@ -158,6 +160,9 @@ const initDB = async () => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    
+    // Perform migrations for existing databases
+    await migrateDatabase();
     
     // Create indexes for better performance
     try {
@@ -178,6 +183,7 @@ const initDB = async () => {
     }
     
     console.log('✅ Database initialized successfully');
+    return db;
     
   } catch (error) {
     console.error('❌ Error initializing database:', error);
@@ -211,6 +217,7 @@ const insertTransaction = async (transaction) => {
     
     console.log('✅ Transaction inserted with ID:', result.lastInsertRowId);
     return result.lastInsertRowId;
+    
   } catch (error) {
     console.error('❌ Error inserting transaction:', error);
     throw error;
@@ -224,16 +231,107 @@ const getTransactions = async () => {
   try {
     if (!db) await initDB();
     
-    const transactions = await db.getAllAsync(
+    const rows = await db.getAllAsync(
       'SELECT * FROM transactions ORDER BY date DESC, created_at DESC'
     );
     
-    return transactions.map(transaction => ({
+    const transactions = rows.map(transaction => ({
       ...transaction,
       amount: parseFloat(transaction.amount)
     }));
+    
+    return transactions;
+    
   } catch (error) {
     console.error('❌ Error getting transactions:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a transaction
+ */
+const updateTransaction = async (id, updates) => {
+  try {
+    if (!db) await initDB();
+    
+    const {
+      amount,
+      description,
+      merchant,
+      category,
+      type,
+      date,
+      account_id,
+      transaction_id,
+      metadata
+    } = updates;
+    
+    const result = await db.runAsync(
+      'UPDATE transactions SET amount = ?, description = ?, merchant = ?, category = ?, type = ?, date = ?, account_id = ?, transaction_id = ?, metadata = ?, updated_at = ? WHERE id = ?',
+      [amount, description, merchant, category, type, date, account_id, transaction_id, metadata, new Date().toISOString(), id]
+    );
+    
+    console.log('✅ Transaction updated, rows affected:', result.changes);
+    return result.changes;
+    
+  } catch (error) {
+    console.error('❌ Error updating transaction:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a transaction
+ */
+const deleteTransaction = async (id) => {
+  try {
+    if (!db) await initDB();
+    
+    const result = await db.runAsync('DELETE FROM transactions WHERE id = ?', [id]);
+    
+    console.log('✅ Transaction deleted, rows affected:', result.changes);
+    return result.changes;
+    
+  } catch (error) {
+    console.error('❌ Error deleting transaction:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get merchant overrides
+ */
+const getMerchantOverrides = async () => {
+  try {
+    if (!db) await initDB();
+    
+    const rows = await db.getAllAsync('SELECT * FROM merchant_overrides ORDER BY merchant');
+    return rows;
+    
+  } catch (error) {
+    console.error('❌ Error getting merchant overrides:', error);
+    throw error;
+  }
+};
+
+/**
+ * Set merchant override
+ */
+const setMerchantOverride = async (merchant, category) => {
+  try {
+    if (!db) await initDB();
+    
+    const result = await db.runAsync(
+      'INSERT OR REPLACE INTO merchant_overrides (merchant, category, updated_at) VALUES (?, ?, ?)',
+      [merchant, category, new Date().toISOString()]
+    );
+    
+    console.log('✅ Merchant override set for:', merchant);
+    return result.lastInsertRowId;
+    
+  } catch (error) {
+    console.error('❌ Error setting merchant override:', error);
     throw error;
   }
 };
@@ -271,6 +369,7 @@ const clearAllData = async () => {
     await db.execAsync('DELETE FROM merchant_overrides');
     
     console.log('🧹 All data cleared from database');
+    
   } catch (error) {
     console.error('❌ Error clearing data:', error);
     throw error;
@@ -281,7 +380,11 @@ const clearAllData = async () => {
 export {
   initDB,
   insertTransaction,
+  updateTransaction,
+  deleteTransaction,
   getTransactions,
+  getMerchantOverrides,
+  setMerchantOverride,
   clearAllData,
   resetDatabase
 };

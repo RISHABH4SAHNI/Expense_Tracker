@@ -2,16 +2,16 @@ import React, { useEffect, useState, useContext } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StatusBar, View, Text, ActivityIndicator } from 'react-native';
+// Using React Native's built-in icon solution
+import Icon from './components/Icon';
 
 // Import existing screens
 import HomeScreen from './screens/HomeScreen';
 import TransactionsScreen from './screens/TransactionsScreen';
 import ChatScreen from './screens/ChatScreen';
 import BankLinkScreen from './screens/BankLinkScreen';
-import InsightsScreen from './screens/InsightsScreen';
+import InsightsNavigator from './navigators/InsightsNavigator';
 
 // Import auth screens
 import LoginScreen from './screens/LoginScreen';
@@ -25,6 +25,7 @@ import { initDatabase } from './services/storage';
 
 // Import API service to set auth context
 import { setAuthContext } from './services/api';
+import { FirebaseAuthProvider } from './context/FirebaseAuthContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -63,7 +64,7 @@ const AppStack = () => {
             iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Icon name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
@@ -101,9 +102,10 @@ const AppStack = () => {
       />
       <Tab.Screen 
         name="Insights" 
-        component={InsightsScreen}
+        component={InsightsNavigator}
         options={{
           tabBarLabel: 'Insights',
+          headerShown: false,
         }}
       />
       <Tab.Screen 

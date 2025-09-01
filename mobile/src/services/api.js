@@ -552,7 +552,7 @@ const detectAnomalies = async (options = {}) => {
       min_amount_threshold: options.minAmountThreshold || 100.0
     };
 
-    const response = await fetchWithAuth(`http://localhost:8001/anomalies`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/anomalies`, {
       method: 'POST',
       body: JSON.stringify(requestBody),
     }, REQUEST_TIMEOUT);
@@ -584,6 +584,176 @@ const detectAnomalies = async (options = {}) => {
   }
 };
 
+// Analytics Functions
+const getAnalyticsSummary = async (options = {}) => {
+  console.log('📊 Fetching analytics summary');
+
+  try {
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (options.accountId) params.append('account_id', options.accountId);
+    if (options.fromDate) params.append('from_date', options.fromDate);
+    if (options.toDate) params.append('to_date', options.toDate);
+
+    const queryString = params.toString();
+    const url = `${BASE_URL}/api/analytics/summary${queryString ? `?${queryString}` : ''}`;
+
+    console.log(`🔗 Analytics URL: ${url}`);
+
+    const response = await fetchWithAuth(url, {
+      method: 'GET',
+    }, REQUEST_TIMEOUT);
+
+    console.log(`📥 Analytics response status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const error = new Error(errorData?.detail || `HTTP error! status: ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ Analytics summary received:', data);
+
+    return {
+      totalInflow: parseFloat(data.total_inflow || 0),
+      totalOutflow: parseFloat(data.total_outflow || 0),
+      balance: parseFloat(data.balance || 0),
+      expenseCategories: data.expense_categories || [],
+      incomeCategories: data.income_categories || [],
+      periodStart: data.period_start,
+      periodEnd: data.period_end,
+      totalTransactions: data.total_transactions || 0
+    };
+  } catch (error) {
+    console.error('💥 Analytics summary failed:', error);
+    if (error.message.includes('Network request failed') || error.message.includes('timeout')) {
+      throw new Error(`Cannot connect to analytics service at ${BASE_URL}. Make sure the server is running and accessible.`);
+    }
+    handleApiError(error, 'getting analytics summary');
+  }
+};
+
+const getCategoryAnalytics = async (options = {}) => {
+  console.log('📈 Fetching category analytics');
+
+  try {
+    const params = new URLSearchParams();
+    if (options.transactionType) params.append('transaction_type', options.transactionType);
+    if (options.accountId) params.append('account_id', options.accountId);
+    if (options.fromDate) params.append('from_date', options.fromDate);
+    if (options.toDate) params.append('to_date', options.toDate);
+
+    const queryString = params.toString();
+    const url = `${BASE_URL}/api/analytics/categories${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetchWithAuth(url, {
+      method: 'GET',
+    }, REQUEST_TIMEOUT);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const error = new Error(errorData?.detail || `HTTP error! status: ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ Category analytics received:', data);
+    return data;
+  } catch (error) {
+    console.error('💥 Category analytics failed:', error);
+    if (error.message.includes('Network request failed') || error.message.includes('timeout')) {
+      throw new Error(`Cannot connect to analytics service. Make sure the server is running and accessible.`);
+    }
+    handleApiError(error, 'getting category analytics');
+  }
+};
+
+const getTimeSeriesAnalytics = async (options = {}) => {
+  console.log('📈 Fetching time-series analytics');
+
+  try {
+    const params = new URLSearchParams();
+    if (options.accountId) params.append('account_id', options.accountId);
+    if (options.months) params.append('months', options.months.toString());
+
+    const queryString = params.toString();
+    const url = `${BASE_URL}/api/analytics/timeseries${queryString ? `?${queryString}` : ''}`;
+
+    console.log(`🔗 Time-series URL: ${url}`);
+
+    const response = await fetchWithAuth(url, {
+      method: 'GET',
+    }, REQUEST_TIMEOUT);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const error = new Error(errorData?.detail || `HTTP error! status: ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ Time-series analytics received:', data);
+    return data;
+  } catch (error) {
+    console.error('💥 Time-series analytics failed:', error);
+    if (error.message.includes('Network request failed') || error.message.includes('timeout')) {
+      throw new Error(`Cannot connect to analytics service. Make sure the server is running and accessible.`);
+    }
+    handleApiError(error, 'getting time-series analytics');
+  }
+};
+
+// Export transactions as CSV
+const exportTransactionsCSV = async (options = {}) => {
+  console.log('📊 Exporting transactions to CSV');
+
+  try {
+    const params = new URLSearchParams();
+    if (options.accountId) params.append('account_id', options.accountId);
+    if (options.fromDate) params.append('from_date', options.fromDate);
+    if (options.toDate) params.append('to_date', options.toDate);
+    if (options.format) params.append('format', options.format);
+
+    const queryString = params.toString();
+    const url = `${BASE_URL}/api/analytics/export${queryString ? `?${queryString}` : ''}`;
+
+    console.log(`🔗 Export URL: ${url}`);
+
+    const response = await fetchWithAuth(url, {
+      method: 'GET',
+    }, REQUEST_TIMEOUT);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const error = new Error(errorData?.detail || `HTTP error! status: ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    // For CSV export, we need to handle the response as text/blob
+    const csvContent = await response.text();
+    console.log('✅ CSV export received');
+
+    // In React Native, we can return the CSV content
+    // The calling component can handle saving or sharing
+    return {
+      content: csvContent,
+      filename: `transactions_export_${new Date().toISOString().split('T')[0]}.csv`,
+      mimeType: 'text/csv'
+    };
+  } catch (error) {
+    console.error('💥 CSV export failed:', error);
+    if (error.message.includes('Network request failed') || error.message.includes('timeout')) {
+      throw new Error(`Cannot connect to export service. Make sure the server is running and accessible.`);
+    }
+    handleApiError(error, 'exporting transactions');
+  }
+};
+
 // Export API functions and AuthManager
 export { 
   syncTransactions, 
@@ -591,6 +761,10 @@ export {
   askQuestion, 
   askAdvancedInsights,
   detectAnomalies,
+  getAnalyticsSummary,
+  getCategoryAnalytics,
+  getTimeSeriesAnalytics,
+  exportTransactionsCSV,
   AuthManager,
   testConnection,
   diagnosticNetworkTest,

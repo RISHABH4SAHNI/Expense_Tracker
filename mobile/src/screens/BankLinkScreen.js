@@ -711,33 +711,15 @@ const BankLinkScreen = ({ navigation }) => {
       {/* Linked Accounts */}
       {renderAccountsList()}
 
-      {/* Logs Section */}
-      <View style={styles.logsContainer}>
-        <Text style={styles.sectionTitle}>Activity Log</Text>
-        {logs.length === 0 ? (
-          <Text style={styles.noLogs}>No activity yet</Text>
-        ) : (
-          logs.map((log) => (
-            <View key={log.id} style={styles.logItem}>
-              <Text style={styles.logTimestamp}>{log.timestamp}</Text>
-              <Text style={[styles.logMessage, { color: getLogColor(log.type) }]}>
-                {log.message}
-              </Text>
-            </View>
-          ))
-        )}
+      {/* Update Notice Section */}
+      <View style={styles.updateNoticeContainer}>
+        <Text style={styles.updateNoticeTitle}>🚧 Coming Soon</Text>
+        <Text style={styles.updateNoticeText}>
+          Bank linking services will be updated later with enhanced features and improved connectivity.
+        </Text>
       </View>
     </ScrollView>
   );
-};
-
-const getLogColor = (type) => {
-  switch (type) {
-    case 'success': return '#4CAF50';
-    case 'error': return '#F44336';
-    case 'warning': return '#FF9800';
-    default: return '#757575';
-  }
 };
 
 const styles = StyleSheet.create({
@@ -887,6 +869,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 4,
+  },
+  updateNoticeContainer: {
+    backgroundColor: 'white',
+    margin: 16,
+    marginTop: 0,
+    padding: 20,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  updateNoticeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FF9800',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  updateNoticeText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   logsContainer: {
     backgroundColor: 'white',

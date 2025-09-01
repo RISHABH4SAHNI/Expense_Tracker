@@ -7,7 +7,7 @@ import asyncpg
 import redis.asyncio as redis
 import logging
 
-from app.routes import transactions, qa, auth, aa, aa_admin
+from app.routes import transactions, qa, auth, aa, aa_admin, analytics
 from app.database import get_db, init_db, close_db
 import os
 import httpx
@@ -157,6 +157,7 @@ async def auth_status(request: Request):
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 
 # Include categorizer router
 from app.routes import categorizer_routes
@@ -202,5 +203,59 @@ async def proxy_insights(query: dict, request: Request):
     except Exception as e:
         logger.error(f"❌ Insights proxy error: {str(e)}")
         raise HTTPException(status_code=503, detail=f"Insights engine unavailable: {str(e)}")
+
+# Add anomaly detection proxy endpoint
+@app.post("/api/anomalies")
+async def proxy_anomalies(query: dict, request: Request):
+    """Proxy endpoint for the anomaly detection service"""
+    logger.info(f"🚨 Anomaly detection request received: {query}")
+
+    try:
+        # Try to connect to the insights engine anomaly endpoint
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            logger.info(f"🔄 Forwarding to anomaly detection service: {query}")
+            response = await client.post("http://localhost:8001/anomalies", json=query)
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info("✅ Anomaly detection response received")
+                return data
+            else:
+                logger.warning(f"⚠️ Anomaly detection service returned {response.status_code}")
+                raise Exception(f"Anomaly detection service returned {response.status_code}")
+
+    except Exception as e:
+        logger.warning(f"⚠️ Anomaly detection service unavailable ({str(e)}), returning mock response")
+
+        # Return mock response when anomaly detection service is not available
+        return {
+            "total_transactions_analyzed": 150,
+            "anomalies_detected": 3,
+            "anomaly_rate": 0.02,
+            "anomalies": [
+                {
+                    "transaction_details": {
+                        "amount": 5000.00,
+                        "merchant": "Luxury Store",
+                        "date": "2025-01-07",
+                        "category": "shopping"
+                    },
+                    "anomaly_reasons": ["Unusually high amount for shopping category"],
+                    "anomaly_score": 0.85
+                },
+                {
+                    "transaction_details": {
+                        "amount": 2500.00,
+                        "merchant": "Premium Restaurant",
+                        "date": "2025-01-06",
+                        "category": "food"
+                    },
+                    "anomaly_reasons": ["Amount significantly higher than average food spending"],
+                    "anomaly_score": 0.72
+                }
+            ],
+            "model_metadata": {"method": "mock_response", "reason": "anomaly_service_unavailable"},
+            "execution_time_ms": 15
+        }
 
 # Example: Run with uvicorn main:app --reload --host 0.0.0.0 --port 8000
