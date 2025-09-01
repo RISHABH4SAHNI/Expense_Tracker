@@ -612,3 +612,50 @@ def _verify_webhook_signature(body: bytes, signature: str) -> bool:
     except Exception as e:
         logger.error(f"Webhook signature verification failed: {e}")
         return False
+
+
+@router.post("/dev/mock-webhook")
+async def trigger_mock_webhook(
+    account_id: str = Query(..., description="Account ID for mock webhook"),
+    tx_id: str = Query(..., description="Transaction ID from mock data"),
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """
+    Development endpoint to trigger mock webhook for testing
+
+    This endpoint simulates receiving a webhook from AA provider by:
+    1. Loading mock transaction data
+    2. Finding the specified transaction
+    3. Creating webhook payload and sending to /aa/webhook endpoint
+
+    Only available in development mode for testing purposes.
+    """
+    try:
+        from pathlib import Path
+        import json
+        import requests
+
+        # Load mock data
+        mock_data_path = Path(__file__).parent.parent.parent / "mock_data" / "aa_transactions.json"
+
+        if not mock_data_path.exists():
+            raise HTTPException(status_code=404, detail="Mock data file not found")
+
+        with open(mock_data_path, 'r') as f:
+            mock_data = json.load(f)
+
+        # Find transaction
+        transactions = mock_data.get("sample_transactions", [])
+        transaction = next((tx for tx in transactions if tx.get("account_id") == account_id and tx.get("id") == tx_id), None)
+
+        if not transaction:
+            raise HTTPException(status_code=404, detail=f"Transaction not found: {account_id}/{tx_id}")
+
+        # Use AA client to simulate webhook
+        webhook_success = await aa_client.simulate_webhook_delivery(account_id, transaction)
+
+        return {"success": webhook_success, "message": f"Mock webhook triggered for {tx_id}"}
+
+    except Exception as e:
+        logger.error(f"Mock webhook trigger failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger mock webhook: {str(e)}")

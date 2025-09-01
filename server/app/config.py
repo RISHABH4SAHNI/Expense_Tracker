@@ -7,6 +7,12 @@ sync settings, and other application configuration.
 
 import os
 
+# Development Configuration
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
+
+# Development Configuration
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
+
 # Account Aggregator Configuration
 USE_REAL_AA = os.getenv("USE_REAL_AA", "false").lower() == "true"
 AA_BASE_URL = os.getenv("AA_BASE_URL", "")
@@ -30,3 +36,17 @@ def is_real_aa() -> bool:
         bool: True if USE_REAL_AA environment variable is set to "true" (case-insensitive)
     """
     return USE_REAL_AA
+
+
+def is_dev_mode() -> bool:
+    """
+    Returns True if the application is running in development mode.
+    """
+    return DEV_MODE
+
+
+def is_dev_mode() -> bool:
+    """
+    Returns True if the application is running in development mode.
+    """
+    return DEV_MODE
