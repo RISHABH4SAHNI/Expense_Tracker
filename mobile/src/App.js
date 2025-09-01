@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from './screens/HomeScreen';
 import TransactionsScreen from './screens/TransactionsScreen';
 import ChatScreen from './screens/ChatScreen';
+import BankLinkScreen from './screens/BankLinkScreen';
 
 // Import auth screens
 import LoginScreen from './screens/LoginScreen';
@@ -53,6 +54,8 @@ const AppStack = () => {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Transactions') {
             iconName = focused ? 'card' : 'card-outline';
+          } else if (route.name === 'BankLink') {
+            iconName = focused ? 'link' : 'link-outline';
           } else if (route.name === 'Chat') {
             iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           }
@@ -83,6 +86,14 @@ const AppStack = () => {
         component={TransactionsScreen}
         options={{
           tabBarLabel: 'Transactions',
+        }}
+      />
+      <Tab.Screen 
+        name="BankLink" 
+        component={BankLinkScreen}
+        options={{
+          tabBarLabel: 'Link Bank',
+          headerTitle: 'Bank Linking',
         }}
       />
       <Tab.Screen 

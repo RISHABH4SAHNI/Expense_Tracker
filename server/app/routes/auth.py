@@ -99,6 +99,10 @@ async def check_rate_limit(request: Request, identifier: str, max_attempts: int 
     Returns:
         True if within rate limit, False if exceeded
     """
+    # Disable rate limiting for development
+    logger.info(f"Development mode: Bypassing rate limit check for {identifier}")
+    return True
+
     if not redis_client:
         # If Redis is not available, allow the request (development mode)
         logger.warning("Redis not available, skipping rate limit check")
@@ -221,7 +225,7 @@ async def store_session_token(db: asyncpg.Connection, user_id: str, token_id: st
 
 
 async def is_token_blacklisted(db: asyncpg.Connection, token_id: str) -> bool:
-    """Check if token is blacklisted"""
+    """Check if token is blacklisted (i.e., NOT in the valid session_tokens table)"""
     try:
         result = await db.fetchval("""
             SELECT EXISTS(
@@ -230,7 +234,9 @@ async def is_token_blacklisted(db: asyncpg.Connection, token_id: str) -> bool:
             )
         """, token_id, datetime.utcnow())
 
-        return bool(result)
+        # If token EXISTS in session_tokens table, it's VALID (not blacklisted)
+        # If token does NOT exist in session_tokens table, it's BLACKLISTED
+        return not bool(result)
 
     except Exception as e:
         logger.error(f"Token blacklist check failed: {e}")

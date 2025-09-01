@@ -155,6 +155,12 @@ app.include_router(transactions.router, prefix="/transactions", tags=["transacti
 app.include_router(aa.router)  # AA router already has /aa prefix
 app.include_router(qa.router, prefix="/qa", tags=["qa"])
 
+# Include dev-only AA routes (only available when DEV_MODE=true)
+from app.config import is_dev_mode
+if is_dev_mode():
+    from app.routes import dev_aa
+    app.include_router(dev_aa.router)  # dev_aa router already has /aa/dev prefix
+
 # Import and include jobs router
 from app.routes import jobs
 app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])

@@ -15,6 +15,33 @@ const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_DATA_KEY = 'user_data';
 
 class AuthService {
+  // Utility function to decode JWT token (without verification)
+  _decodeJWT(token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error('JWT decode error:', error);
+      return null;
+    }
+  }
+
+  // Log token details for debugging
+  _logTokenDebug(token, label) {
+    if (token) {
+      const payload = this._decodeJWT(token);
+      console.log(`[AuthService] ${label}:`); 
+      console.log(`  - Token prefix: ${token.substring(0, 30)}...`);
+      console.log(`  - Token ID (jti): ${payload?.jti || 'MISSING'}`);
+      console.log(`  - User ID (sub): ${payload?.sub || 'MISSING'}`);
+      console.log(`  - Expires: ${payload?.exp ? new Date(payload.exp * 1000).toISOString() : 'MISSING'}`);
+    }
+  }
+
   // Register new user
   async register(email, password) {
     try {
@@ -37,7 +64,16 @@ class AuthService {
       const data = await response.json();
 
       // Store tokens and user data securely
+      console.log('[AuthService] Login successful, storing new tokens...');
+      this._logTokenDebug(data.access_token, 'NEW ACCESS TOKEN');
+
+      // Clear old tokens first to prevent caching issues
+      await this._clearAuthData();
+      console.log('[AuthService] Old tokens cleared, storing new ones...');
+
       await this._storeAuthData(data.access_token, data.refresh_token, data.user);
+      console.log('[AuthService] New tokens stored successfully');
+      this._logTokenDebug(data.refresh_token, 'NEW REFRESH TOKEN');
 
       return {
         success: true,
@@ -72,7 +108,16 @@ class AuthService {
       const data = await response.json();
 
       // Store tokens and user data securely
+      console.log('[AuthService] Login successful, storing new tokens...');
+      this._logTokenDebug(data.access_token, 'NEW ACCESS TOKEN');
+
+      // Clear old tokens first to prevent caching issues
+      await this._clearAuthData();
+      console.log('[AuthService] Old tokens cleared, storing new ones...');
+
       await this._storeAuthData(data.access_token, data.refresh_token, data.user);
+      console.log('[AuthService] New tokens stored successfully');
+      this._logTokenDebug(data.refresh_token, 'NEW REFRESH TOKEN');
 
       return {
         success: true,
@@ -182,6 +227,24 @@ class AuthService {
     }
   }
 
+  // Force refresh auth headers (clears any potential caching)
+  async getAuthHeadersFresh() {
+    try {
+      // Force a fresh read from SecureStore
+      const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      this._logTokenDebug(accessToken, 'FRESH TOKEN FROM STORAGE');
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+      return headers;
+    } catch (error) {
+      console.error('Error getting fresh auth headers:', error);
+      return { 'Content-Type': 'application/json' };
+    }
+  }
+
   // Get auth headers for API requests
   async getAuthHeaders() {
     try {
@@ -216,9 +279,18 @@ class AuthService {
   // Private method to store auth data
   async _storeAuthData(accessToken, refreshToken, userData) {
     try {
+      this._logTokenDebug(accessToken, 'STORING ACCESS TOKEN');
       await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
       await SecureStore.setItemAsync(USER_DATA_KEY, JSON.stringify(userData));
+
+      // Verify storage by immediately reading back
+      const storedToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      this._logTokenDebug(storedToken, 'VERIFIED STORED TOKEN');
+
+      if (storedToken !== accessToken) {
+        throw new Error('Token storage verification failed');
+      }
     } catch (error) {
       console.error('Error storing auth data:', error);
       throw new Error('Failed to store authentication data');
@@ -231,6 +303,7 @@ class AuthService {
       await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
       await SecureStore.deleteItemAsync(USER_DATA_KEY);
+      console.log('[AuthService] Auth data cleared');
     } catch (error) {
       console.error('Error clearing auth data:', error);
     }
