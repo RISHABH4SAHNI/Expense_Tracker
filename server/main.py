@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
@@ -10,6 +10,7 @@ import logging
 from app.routes import transactions, qa, auth, aa, aa_admin
 from app.database import get_db, init_db, close_db
 import os
+import httpx
 
 
 # Global connections
@@ -69,6 +70,10 @@ async def lifespan(app: FastAPI):
         redis_client = redis.from_url(redis_url)
         await redis_client.ping()
         print("✅ Connected to Redis")
+
+        # Initialize categorizer with database pool
+        from app.services.categorizer import categorizer
+        categorizer.set_db_pool(db_pool)
 
         # Pass Redis client to modules that need it
         from app.routes.transactions import set_redis_client as set_transactions_redis
@@ -152,6 +157,10 @@ async def auth_status(request: Request):
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
+
+# Include categorizer router
+from app.routes import categorizer_routes
+app.include_router(categorizer_routes.router)
 app.include_router(aa.router)  # AA router already has /aa prefix
 app.include_router(qa.router, prefix="/qa", tags=["qa"])
 
@@ -164,5 +173,34 @@ if is_dev_mode():
 # Import and include jobs router
 from app.routes import jobs
 app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
+
+# Add insights engine proxy endpoint
+@app.post("/api/insights")
+async def proxy_insights(query: dict, request: Request):
+    """Proxy endpoint for the insights engine microservice"""
+    logger.info(f"🧠 Insights request received: {query}")
+
+    try:
+        # For now, return a mock response since insights engine is not running
+        logger.warning("⚠️ Insights engine not running, returning mock response")
+
+        return {
+            "answer": "Based on your recent transactions, I can see spending patterns but the full insights engine is currently unavailable. Please ensure the insights microservice is running on port 8001.",
+            "confidence": 0.5,
+            "supporting_transactions": [
+                {
+                    "amount": 1250.00,
+                    "merchant": "Sample Restaurant",
+                    "date": "2025-01-08",
+                    "category": "Food"
+                }
+            ],
+            "analysis_metadata": {"method": "mock_response"},
+            "execution_time_ms": 10
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Insights proxy error: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Insights engine unavailable: {str(e)}")
 
 # Example: Run with uvicorn main:app --reload --host 0.0.0.0 --port 8000

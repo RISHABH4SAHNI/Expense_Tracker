@@ -7,7 +7,8 @@ const getApiHost = () => {
   // FORCE IP ADDRESS FOR PHYSICAL DEVICE TESTING
   // Change this back to localhost when testing in simulator
   // For physical devices, use your computer's IP address
-  return '192.168.1.246';
+  return '192.168.1.251';
+  return '192.168.1.251';
 };
 
 const API_HOST = getApiHost();
@@ -463,11 +464,133 @@ const askQuestion = async (question, contextDays = 30) => {
   }
 };
 
+// Advanced Insights Engine Functions
+const askAdvancedInsights = async (question, options = {}) => {
+  console.log(`🧠 Asking advanced insights: "${question}"`);
+  console.log(`🔗 Using API endpoint: ${BASE_URL}/api/insights`);
+
+  if (!question || typeof question !== 'string' || question.trim().length === 0) {
+    throw new Error('Question must be a non-empty string');
+  }
+
+  // Get current user from authService instead of AuthManager
+  const currentUser = await authService.getCurrentUser();
+  if (!currentUser || !currentUser.id) {
+    throw new Error('User not authenticated');
+  }
+
+  if (!currentUser.id) {
+    throw new Error('User not authenticated');
+  }
+
+  try {
+    const requestBody = {
+      question: question.trim(),
+      user_id: currentUser.id,
+      time_range_days: options.timeRangeDays || 30,
+      include_supporting_data: options.includeSupportingData !== false,
+      max_transactions: options.maxTransactions || 10
+    };
+
+    console.log('📤 Request body:', requestBody);
+
+    const response = await fetchWithAuth(`${BASE_URL}/api/insights`, {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    }, REQUEST_TIMEOUT);
+
+    console.log(`📥 Response status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error('❌ API Error:', errorData);
+      const error = new Error(errorData?.detail || `HTTP error! status: ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ Advanced Insights Response received:', data);
+
+    return {
+      answer: data.answer,
+      confidence: data.confidence,
+      supporting_transactions: data.supporting_transactions || [],
+      analysis_metadata: data.analysis_metadata || {},
+      sql_query: data.sql_query,
+      execution_time_ms: data.execution_time_ms
+    };
+  } catch (error) {
+    console.error('💥 Advanced insights failed:', error);
+    if (error.message.includes('Network request failed') || error.message.includes('timeout')) {
+      throw new Error(`Cannot connect to insights engine at ${BASE_URL}. Make sure the server is running and accessible.`);
+    }
+    handleApiError(error, 'getting advanced insights');
+  }
+};
+
+// Anomaly Detection Functions
+const detectAnomalies = async (options = {}) => {
+  console.log('🚨 Detecting spending anomalies');
+
+  // Get current user from authService instead of AuthManager
+  const currentUser = await authService.getCurrentUser();
+  if (!currentUser || !currentUser.id) {
+    throw new Error('User not authenticated');
+  }
+
+  if (!currentUser.id) {
+    throw new Error('User not authenticated');
+  }
+
+  try {
+    const requestBody = {
+      user_id: currentUser.id,
+      time_range_days: options.timeRangeDays || 30,
+      training_period_days: options.trainingPeriodDays || 180,
+      sensitivity: options.sensitivity || 0.1,
+      min_amount_threshold: options.minAmountThreshold || 100.0
+    };
+
+    const response = await fetchWithAuth(`http://localhost:8001/anomalies`, {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    }, REQUEST_TIMEOUT);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const error = new Error(errorData?.detail || `HTTP error! status: ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ Anomaly detection response:', data);
+
+    return {
+      total_transactions_analyzed: data.total_transactions_analyzed,
+      anomalies_detected: data.anomalies_detected,
+      anomaly_rate: data.anomaly_rate,
+      anomalies: data.anomalies || [],
+      model_metadata: data.model_metadata || {},
+      execution_time_ms: data.execution_time_ms
+    };
+  } catch (error) {
+    console.error('💥 Anomaly detection failed:', error);
+    if (error.message.includes('Network request failed') || error.message.includes('timeout')) {
+      throw new Error(`Cannot connect to anomaly detection service. Make sure the insights engine is running.`);
+    }
+    handleApiError(error, 'detecting anomalies');
+  }
+};
+
 // Export API functions and AuthManager
 export { 
   syncTransactions, 
   fetchTransactionsFromServer, 
   askQuestion, 
+  askAdvancedInsights,
+  detectAnomalies,
   AuthManager,
   testConnection,
   diagnosticNetworkTest,
