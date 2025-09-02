@@ -58,7 +58,10 @@ const LoginScreen = ({ navigation }) => {
 
       if (result.success) {
         // Update auth context
-        await signIn(result.user);
+        await signIn({
+          ...result.user,
+          firebase_token: result.firebase_token
+        });
         // Navigation will be handled by AuthContext
       }
     } catch (error) {

@@ -23,6 +23,7 @@ import {
 import { getAnalyticsSummary, getTimeSeriesAnalytics, exportTransactionsCSV } from '../services/api';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { clearAllAppData } from '../utils/clearData';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -542,7 +543,10 @@ const AnalyticsScreen = () => {
         analytics.incomeCategories, 
         'Income Sources', 
         'income'
-      )}
+      )}        {/* Debug Clear Button (Dev Only) */}
+        {renderClearDataButton()}
+
+
     </ScrollView>
   );
 };
@@ -829,6 +833,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 4,
   },
-});
+});  // Debug: Clear all data button (only show in development)
+  const renderClearDataButton = () => {
+    if (!__DEV__) return null;
+    
+    return (
+      <View style={styles.chartCard}>
+        <Text style={styles.cardTitle}>🛠️ Debug Tools</Text>
+        <TouchableOpacity
+          style={[styles.clearButton, { backgroundColor: '#FF3B30' }]}
+          onPress={clearAllAppData}
+        >
+          <Text style={styles.clearButtonText}>🧹 Clear All App Data</Text>
+        </TouchableOpacity>
+        <Text style={styles.debugText}>
+          Use this to clear all local data and start fresh with clean analytics.
+        </Text>
+      </View>
+    );
+  };
+
+
 
 export default AnalyticsScreen;

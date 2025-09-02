@@ -37,7 +37,7 @@ const TransactionCard = ({ transaction }) => {
           styles.amount,
           transaction.type === 'income' ? styles.income : styles.expense
         ]}>
-          {transaction.type === 'income' ? '+' : '-'}${Math.abs(transaction.amount).toFixed(2)}
+          {transaction.type === 'income' ? '+' : '-'}₹{Math.abs(transaction.amount).toFixed(2)}
         </Text>
       </View>
     </View>

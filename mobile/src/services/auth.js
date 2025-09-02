@@ -2,7 +2,20 @@ import * as SecureStore from 'expo-secure-store';
 
 // API configuration
 const getApiHost = () => {
-  return '192.168.1.251'; // Use your computer's IP address for physical device testing
+  // Use environment variable from .env file
+  const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envApiUrl) {
+    // Extract host from full URL
+    try {
+      const url = new URL(envApiUrl);
+      return url.hostname;
+    } catch (error) {
+      console.error('Invalid EXPO_PUBLIC_API_URL format:', envApiUrl);
+    }
+  }
+
+  // Fallback for development
+  return '192.168.1.249';
 };
 
 const API_HOST = getApiHost();
@@ -78,6 +91,7 @@ class AuthService {
       return {
         success: true,
         user: data.user,
+        firebase_token: data.firebase_token,
         message: 'Registration successful',
       };
     } catch (error) {
@@ -122,6 +136,7 @@ class AuthService {
       return {
         success: true,
         user: data.user,
+        firebase_token: data.firebase_token,
         message: 'Login successful',
       };
     } catch (error) {
@@ -164,6 +179,7 @@ class AuthService {
       return {
         success: true,
         accessToken: data.access_token,
+        firebase_token: data.firebase_token,
       };
     } catch (error) {
       console.error('Token refresh error:', error);
@@ -220,7 +236,19 @@ class AuthService {
   async isAuthenticated() {
     try {
       const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
-      return !!accessToken;
+      const userData = await SecureStore.getItemAsync(USER_DATA_KEY);
+
+      // Require BOTH access token AND user data for authentication
+      const hasToken = !!accessToken;
+      const hasUserData = !!userData;
+
+      console.log('[AuthService] Authentication check:', {
+        hasToken,
+        hasUserData,
+        isAuthenticated: hasToken && hasUserData
+      });
+
+      return hasToken && hasUserData;
     } catch (error) {
       console.error('Error checking authentication:', error);
       return false;

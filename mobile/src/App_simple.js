@@ -4,19 +4,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
-
-// Use our custom Icon component instead of Ionicons for better compatibility
-import Icon from './components/Icon';
+import { View, Text, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import existing screens
 import HomeScreen from './screens/HomeScreen';
 import TransactionsScreen from './screens/TransactionsScreen';
 import ChatScreen from './screens/ChatScreen';
 import BankLinkScreen from './screens/BankLinkScreen';
-
-// Import nested navigator (contains both AI Insights and Analytics)
-import InsightsNavigator from './navigators/InsightsNavigator';
+import InsightsScreen from './screens/InsightsScreen';
 
 // Import auth screens
 import LoginScreen from './screens/LoginScreen';
@@ -68,7 +64,7 @@ const AppStack = () => {
             iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           }
 
-          return <Icon name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
@@ -106,10 +102,9 @@ const AppStack = () => {
       />
       <Tab.Screen 
         name="Insights" 
-        component={InsightsNavigator}
+        component={InsightsScreen}
         options={{
           tabBarLabel: 'Insights',
-          headerShown: false, // Hide header for nested navigator
         }}
       />
       <Tab.Screen 
@@ -123,18 +118,18 @@ const AppStack = () => {
   );
 };
 
-// Logout Button Component using custom Icon
+// Logout Button Component
 const LogoutButton = () => {
   const { signOut } = useContext(AuthContext);
 
   return (
-    <TouchableOpacity onPress={signOut} style={{ marginRight: 15 }}>
-      <Icon 
-        name="log-out-outline" 
-        size={24} 
-        color="#FFFFFF" 
-      />
-    </TouchableOpacity>
+    <Ionicons 
+      name="log-out-outline" 
+      size={24} 
+      color="#FFFFFF" 
+      style={{ marginRight: 15 }}
+      onPress={signOut}
+    />
   );
 };
 

@@ -76,7 +76,10 @@ const RegisterScreen = ({ navigation }) => {
               text: 'OK',
               onPress: async () => {
                 // Update auth context
-                await signIn(result.user);
+                await signIn({
+              ...result.user,
+              firebase_token: result.firebase_token
+            });
                 // Navigation will be handled by AuthContext
               },
             },

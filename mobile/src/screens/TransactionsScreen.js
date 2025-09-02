@@ -5,8 +5,8 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import Icon from '../components/Icon';
 import { TransactionList, TransactionForm } from '../components/transactions';
 import { addTransaction } from '../services/transactions/transactionService';
 
@@ -46,7 +46,7 @@ const TransactionsScreen = () => {
         style={styles.fab}
         onPress={handleAddTransaction}
       >
-        <Ionicons name="add" size={28} color="#fff" />
+        <Icon name="add" size={28} color="#fff" />
       </TouchableOpacity>
     </View>
   );

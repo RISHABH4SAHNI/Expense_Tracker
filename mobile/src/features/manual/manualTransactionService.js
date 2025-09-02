@@ -6,7 +6,7 @@
  */
 
 import { insertTransaction, getTransactions } from '../../storage/db';
-import { addExpense as addFirebaseExpense } from '../../services/firebase';
+import { addExpense as addFirebaseExpense, getCurrentUser } from '../../services/firebase';
 
 // Transaction categories
 export const TRANSACTION_CATEGORIES = {
@@ -104,19 +104,26 @@ export const addTransaction = async (transactionData) => {
 
     // Insert into local database
     const transactionId = await insertTransaction(transaction);
+    console.log('✅ Transaction saved locally with ID:', transactionId);
 
     // Sync with Firebase if user is authenticated
     try {
-      await addFirebaseExpense({
-        ...transaction,
-        localId: transactionId // Keep reference to local ID
-      });
-      console.log('✅ Transaction synced to Firebase');
+      const currentUser = getCurrentUser();
+      if (currentUser) {
+        console.log('🔄 [TransactionService] Attempting Firebase sync...');
+        await addFirebaseExpense({
+          ...transaction,
+          localId: transactionId // Keep reference to local ID
+        });
+        console.log('✅ [TransactionService] Transaction synced to Firebase');
+      } else {
+        console.log('ℹ️ [TransactionService] Firebase user not available, operating in offline mode');
+      }
     } catch (firebaseError) {
-      console.warn('⚠️ Firebase sync failed, transaction saved locally:', firebaseError.message);
+      console.warn('⚠️ [TransactionService] Firebase sync failed, continuing in offline mode:', firebaseError.message);
     }
 
-    console.log('✅ Manual transaction added:', transactionId);
+    console.log('✅ [TransactionService] Manual transaction processed successfully:', transactionId);
     return transactionId;
   } catch (error) {
     console.error('❌ Error adding manual transaction:', error);
