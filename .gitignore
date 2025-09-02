@@ -59,6 +59,13 @@ logs/
 
 # Node.js (for mobile app)
 node_modules/
+server/venv/
+server/test_venv/
+server/server_env_311/
+
+# Firebase service account keys
+**/firebase-service-account.json
+**/service-account-key.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

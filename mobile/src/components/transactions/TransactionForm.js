@@ -31,7 +31,7 @@ const TransactionForm = ({ visible, onClose, onSubmit }) => {
     notes: ''
   });
 
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showCategoryList, setShowCategoryList] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
@@ -83,49 +83,10 @@ const TransactionForm = ({ visible, onClose, onSubmit }) => {
     }
   };
 
-  const renderCategoryPicker = () => {
-    const categories = formData.type === 'income' 
-      ? TRANSACTION_CATEGORIES.INCOME 
-      : TRANSACTION_CATEGORIES.EXPENSE;
-
-    return (
-      <Modal
-        visible={showCategoryPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowCategoryPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.categoryModal}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Category</Text>
-              <TouchableOpacity
-                onPress={() => setShowCategoryPicker(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.categoryList}>
-              {categories.map((category, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.categoryItem}
-                  onPress={() => {
-                    setFormData(prev => ({ ...prev, category }));
-                    setShowCategoryPicker(false);
-                  }}
-                >
-                  <Text style={styles.categoryText}>{category}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
+  // Get categories based on transaction type
+  const categories = formData.type === 'income' 
+    ? TRANSACTION_CATEGORIES.INCOME 
+    : TRANSACTION_CATEGORIES.EXPENSE;
 
   return (
     <Modal
@@ -219,7 +180,7 @@ const TransactionForm = ({ visible, onClose, onSubmit }) => {
             <Text style={styles.sectionTitle}>Category</Text>
             <TouchableOpacity
               style={styles.categorySelector}
-              onPress={() => setShowCategoryPicker(true)}
+              onPress={() => setShowCategoryList(!showCategoryList)}
             >
               <Text style={[
                 styles.categorySelectorText,
@@ -227,8 +188,30 @@ const TransactionForm = ({ visible, onClose, onSubmit }) => {
               ]}>
                 {formData.category || 'Select category'}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
+              <Ionicons 
+                name={showCategoryList ? "chevron-up" : "chevron-down"} 
+                size={20} 
+                color="#666" 
+              />
             </TouchableOpacity>
+
+            {/* Inline Category List */}
+            {showCategoryList && (
+              <View style={styles.categoryList}>
+                {categories.map((category, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.categoryItem}
+                    onPress={() => {
+                      setFormData(prev => ({ ...prev, category }));
+                      setShowCategoryList(false);
+                    }}
+                  >
+                    <Text style={styles.categoryText}>{category}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
 
           {/* Description */}
@@ -282,8 +265,6 @@ const TransactionForm = ({ visible, onClose, onSubmit }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {renderCategoryPicker()}
     </Modal>
   );
 };
@@ -412,39 +393,17 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: 'top',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  categoryModal: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  closeButton: {
-    padding: 5,
-  },
   categoryList: {
-    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginTop: 5,
+    maxHeight: 200,
   },
   categoryItem: {
     paddingVertical: 15,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },

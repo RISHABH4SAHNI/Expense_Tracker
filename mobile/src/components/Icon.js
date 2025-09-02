@@ -5,6 +5,10 @@ import { Text } from 'react-native';
 const iconMap = {
   'home': '🏠',
   'home-outline': '🏠',
+  'card': '💳',
+  'card-outline': '💳',
+  'link': '🔗',
+  'link-outline': '🔗',
   'list': '📋',
   'list-outline': '📋',
   'chatbubble': '💬',
@@ -24,7 +28,22 @@ const iconMap = {
   'lock-closed': '🔒',
   'lock-closed-outline': '🔒',
   'refresh': '🔄',
-  'refresh-outline': '🔄'
+  'refresh-outline': '🔄',
+  'log-out-outline': '🚀',
+  'log-out-outline': '🔓',
+  'restaurant-outline': '🍽️',
+  'car-outline': '🚗',
+  'pie-chart-outline': '📊',
+  'storefront-outline': '🏪',
+  'bag-outline': '🛍️',
+  'musical-notes-outline': '🎵',
+  'receipt-outline': '🧾',
+  'medical-outline': '⚕️',
+  'school-outline': '🎓',
+  'trending-up-outline': '📈',
+  'ellipsis-horizontal-outline': '⋯',
+  'filter': '🔽',
+  'filter-outline': '🔽'
 };
 
 const Icon = ({ name, size = 24, color = '#000', style }) => {

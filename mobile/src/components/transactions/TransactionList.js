@@ -15,8 +15,8 @@ import {
   ActivityIndicator,
   Alert
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import TransactionCard from './TransactionCard';
+import Icon from '../Icon';
 import { getAllTransactions } from '../../services/transactions/transactionService';
 import { TRANSACTION_CATEGORIES } from '../../features/manual/manualTransactionService';
 
@@ -219,7 +219,7 @@ const TransactionList = ({ onAddTransaction, refreshTrigger }) => {
           style={styles.filterToggle}
           onPress={() => setShowFilters(!showFilters)}
         >
-          <Ionicons 
+          <Icon 
             name={showFilters ? "filter" : "filter-outline"} 
             size={20} 
             color="#007AFF" 
@@ -232,7 +232,7 @@ const TransactionList = ({ onAddTransaction, refreshTrigger }) => {
         style={styles.addButton}
         onPress={onAddTransaction}
       >
-        <Ionicons name="add" size={24} color="#fff" />
+        <Icon name="add" size={24} color="#fff" />
       </TouchableOpacity>
     </View>
   );
@@ -266,7 +266,7 @@ const TransactionList = ({ onAddTransaction, refreshTrigger }) => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="receipt-outline" size={64} color="#ccc" />
+            <Icon name="receipt-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>No transactions found</Text>
             <Text style={styles.emptySubText}>
               {activeFilters.type === 'all' ? 'Add your first transaction to get started' : `No ${activeFilters.type} transactions found`}

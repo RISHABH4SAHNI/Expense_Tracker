@@ -26,6 +26,9 @@ AA_MOCK_WEBHOOK_SECRET = os.getenv("AA_MOCK_WEBHOOK_SECRET", "")
 SYNC_BATCH_SIZE = int(os.getenv("SYNC_BATCH_SIZE", "100"))
 SYNC_POLL_INTERVAL = int(os.getenv("SYNC_POLL_INTERVAL", "30"))
 
+# Firebase Configuration
+FIREBASE_SERVICE_ACCOUNT_PATH = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "")
+
 
 def is_real_aa() -> bool:
     """

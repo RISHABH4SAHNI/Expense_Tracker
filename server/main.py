@@ -89,6 +89,11 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Redis connection failed: {e}")
         print("⚠️  Running without Redis (development mode)")
 
+    # Initialize Firebase Admin SDK
+    from app.services.firebase_admin import initialize_firebase
+    if initialize_firebase():
+        print("✅ Firebase Admin SDK initialized")
+
     print("🚀 FastAPI server started successfully!")
 
     yield

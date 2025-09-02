@@ -1,90 +1,83 @@
 /**
- * Firebase Configuration
- * 
- * Initializes Firebase app with Auth and Firestore
- * Uses environment variables for security
+ * Firebase Configuration - Compat API Approach
+ * Using Firebase compat API for better Expo compatibility
  */
 
-import { initializeApp } from 'firebase/app';
-import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
 
-// Firebase configuration from environment variables
+console.log('🔥 Loading Firebase Config (Compat API)...');
+
+// Firebase configuration
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
+  apiKey: 'AIzaSyBd4yYwTCpvc_3DCqKhcs6wppq9cSFM6NY',
+  authDomain: 'expense-tracker-45860.firebaseapp.com',
+  projectId: 'expense-tracker-45860',
+  storageBucket: 'expense-tracker-45860.firebasestorage.app',
+  messagingSenderId: '459767973678',
+  appId: '1:459767973678:web:0c172117e0a8e0c6a29cbf',
+  measurementId: 'G-VVXQCLLZMC'
 };
 
-// Validate configuration
-const validateConfig = () => {
-  const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
-  const missingKeys = requiredKeys.filter(key => !firebaseConfig[key] || firebaseConfig[key].includes('placeholder'));
-
-  // Check if we're using placeholder values
-  const hasPlaceholders = requiredKeys.some(key => 
-    firebaseConfig[key] && firebaseConfig[key].includes('placeholder')
-  );
-
-  if (missingKeys.length > 0) {
-    console.error('❌ Missing Firebase configuration keys:', missingKeys);
-    console.error('Please check your .env file and ensure all required Firebase environment variables are set.');
-    console.warn('⚠️  Firebase services will be disabled until proper configuration is provided');
-    return false;
-  }
-
-  if (hasPlaceholders) {
-    console.warn('⚠️  Using placeholder Firebase configuration. Firebase services will be disabled.');
-    console.warn('Please update your .env file with actual Firebase project configuration.');
-    return false;
-  }
-
-  console.log('✅ Firebase configuration validated');
-  return true;
-};
-
-// Check if Firebase should be initialized
-const shouldInitializeFirebase = validateConfig();
+// Initialize Firebase with compat API
 let app, auth, db;
+let initializationError = null;
 
-// Initialize Firebase only if configuration is valid
-if (shouldInitializeFirebase) {
-  console.log('🔄 Initializing Firebase...');
-  app = initializeApp(firebaseConfig);
+try {
+  console.log('🔄 Initializing Firebase with compat API...');
 
-  // Initialize Auth with persistence
-  if (Platform.OS === 'web') {
-    auth = getAuth(app);
+  // Check if Firebase is already initialized
+  if (!firebase.apps.length) {
+    app = firebase.initializeApp(firebaseConfig);
+    console.log('✅ Firebase app initialized');
   } else {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage)
-    });
+    app = firebase.app();
+    console.log('✅ Firebase app already initialized');
   }
 
-  // Initialize Firestore
-  db = getFirestore(app);
+  console.log('🔄 Getting Firebase Auth...');
+  auth = firebase.auth();
+  console.log('✅ Firebase Auth ready');
 
-  // Development: Connect to Firestore emulator if running locally
-  const __DEV__ = process.env.NODE_ENV === 'development';
-  if (__DEV__ && !db._delegate._databaseId.projectId.includes('demo-')) {
-    console.log('🔧 Development mode: Consider using Firestore emulator');
-    // Uncomment to use emulator:
-    // connectFirestoreEmulator(db, 'localhost', 8080);
+  console.log('🔄 Getting Firestore...');
+  db = firebase.firestore();
+  console.log('✅ Firestore ready');
+
+  console.log('🎉 Firebase setup complete with compat API!');
+
+  // Test auth availability
+  console.log('🔍 Auth instance type:', typeof auth);
+  console.log('🔍 Auth methods available:', !!auth.signInWithEmailAndPassword);
+
+  // Add Firebase v9 compatible methods for custom token support
+  auth.signInWithCustomToken = async (customToken) => {
+    try {
+      console.log('🔄 Signing in with custom token (compat)...');
+      const result = await auth.signInWithCustomToken(customToken);
+      console.log('✅ Custom token sign-in successful');
+      return result;
+    } catch (error) {
+      console.error('❌ Custom token sign-in failed:', error);
+      throw error;
+    }
+  };
+
+} catch (error) {
+  console.error('❌ Firebase initialization failed:', error);
+  console.error('Error details:', error.message);
+  console.error('Error code:', error.code);
+
+  // Log more detailed error info for debugging
+  if (error.stack) {
+    console.error('Stack trace:', error.stack);
   }
 
-  console.log('🔥 Firebase initialized successfully');
-} else {
-  console.log('🔥 Firebase initialization skipped - using local storage only');
-  // Set to null so other parts of the app can check
+  initializationError = error;
   app = null;
   auth = null;
   db = null;
 }
 
-export { app, auth, db, shouldInitializeFirebase };
+// Export Firebase instances and utilities
+export { app, auth, db, initializationError };

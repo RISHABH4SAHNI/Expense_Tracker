@@ -24,6 +24,7 @@ from app.security import (
     decode_token, extract_user_id_from_token, extract_token_id_from_token,
     generate_token_id
 )
+from app.services.firebase_admin import create_custom_token, initialize_firebase
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -76,6 +77,7 @@ class TokenResponse(BaseModel):
     token_type: str = Field(default="bearer", description="Token type")
     expires_in: int = Field(..., description="Access token expiration in seconds")
     user: UserResponse = Field(..., description="User information")
+    firebase_token: Optional[str] = Field(None, description="Firebase custom token for Firestore access")
 
 
 class LogoutResponse(BaseModel):
@@ -372,11 +374,17 @@ async def register_user(
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data)
 
+        # Generate Firebase custom token
+        firebase_token = create_custom_token(mock_user["id"], {
+            "email": mock_user["email"]
+        })
+
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
             expires_in=15 * 60,  # 15 minutes
-            user=UserResponse(**mock_user)
+            user=UserResponse(**mock_user),
+            firebase_token=firebase_token
         )
 
     # Create user in database
@@ -397,13 +405,19 @@ async def register_user(
     await store_session_token(db, user["id"], access_token_id, access_expires)
     await store_session_token(db, user["id"], refresh_token_id, refresh_expires)
 
+    # Generate Firebase custom token
+    firebase_token = create_custom_token(user["id"], {
+        "email": user["email"]
+    })
+
     logger.info(f"✅ User registered successfully: {user['email']}")
 
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=15 * 60,  # 15 minutes in seconds
-        user=UserResponse(**user)
+        user=UserResponse(**user),
+        firebase_token=firebase_token
     )
 
 
@@ -450,11 +464,17 @@ async def login_user(
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data)
 
+        # Generate Firebase custom token
+        firebase_token = create_custom_token(mock_user["id"], {
+            "email": mock_user["email"]
+        })
+
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
             expires_in=15 * 60,
-            user=UserResponse(**mock_user)
+            user=UserResponse(**mock_user),
+            firebase_token=firebase_token
         )
 
     # Get user from database
@@ -493,6 +513,11 @@ async def login_user(
         WHERE user_id = $1 AND expires_at < $2
     """, user["id"], datetime.utcnow())
 
+    # Generate Firebase custom token
+    firebase_token = create_custom_token(user["id"], {
+        "email": user["email"]
+    })
+
     logger.info(f"✅ Login successful for user: {user['email']}")
 
     # Remove password hash from response
@@ -502,7 +527,8 @@ async def login_user(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=15 * 60,
-        user=UserResponse(**user_response)
+        user=UserResponse(**user_response),
+        firebase_token=firebase_token
     )
 
 
@@ -546,11 +572,17 @@ async def refresh_tokens(
                 "aa_account_id": None
             }
 
+            # Generate Firebase custom token
+            firebase_token = create_custom_token(user_id, {
+                "email": payload.get("email", "dev@example.com")
+            })
+
             return TokenResponse(
                 access_token=new_access_token,
                 refresh_token=new_refresh_token,
                 expires_in=15 * 60,
-                user=UserResponse(**mock_user)
+                user=UserResponse(**mock_user),
+                firebase_token=firebase_token
             )
 
         # Check if refresh token is blacklisted
@@ -592,6 +624,11 @@ async def refresh_tokens(
         await store_session_token(db, str(user["id"]), new_access_token_id, access_expires)
         await store_session_token(db, str(user["id"]), new_refresh_token_id, refresh_expires)
 
+        # Generate Firebase custom token
+        firebase_token = create_custom_token(str(user["id"]), {
+            "email": user["email"]
+        })
+
         logger.info(f"✅ Token refresh successful for user: {user['email']}")
 
         user_data = {
@@ -605,7 +642,8 @@ async def refresh_tokens(
             access_token=new_access_token,
             refresh_token=new_refresh_token,
             expires_in=15 * 60,
-            user=UserResponse(**user_data)
+            user=UserResponse(**user_data),
+            firebase_token=firebase_token
         )
 
     except HTTPException:

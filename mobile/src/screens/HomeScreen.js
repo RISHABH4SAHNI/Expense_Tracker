@@ -11,6 +11,7 @@ import { getTransactions } from '../services/storage';
 import { TransactionForm } from '../components/transactions';
 import { addTransaction } from '../services/transactions/transactionService';
 import { syncTransactions } from '../services/api';
+import { clearLocalDatabase } from '../utils/debugUtils';
 
 const HomeScreen = () => {
   const [moneyIn, setMoneyIn] = useState(0);
@@ -19,6 +20,14 @@ const HomeScreen = () => {
   const [syncing, setSyncing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [debugTapCount, setDebugTapCount] = useState(0);
+  const [showDebugButton, setShowDebugButton] = useState(__DEV__ ? false : false);
+
+  useEffect(() => {
+    // Log development mode status for debugging
+    console.log('🔧 Development mode (__DEV__):', __DEV__);
+    console.log('🔧 Debug button initial state:', __DEV__ ? false : false);
+  }, []);
 
   useEffect(() => {
     loadTransactionSummary();
@@ -94,6 +103,51 @@ const HomeScreen = () => {
     });
   };
 
+  // Debug functionality - tap title 5 times to show debug button
+  const handleTitlePress = () => {
+    console.log('🔧 Title tapped! __DEV__:', __DEV__, 'Current tap count:', debugTapCount);
+
+    if (!__DEV__) return; // Only work in development
+
+    const newCount = debugTapCount + 1;
+    setDebugTapCount(newCount);
+
+    if (newCount >= 5) {
+      setShowDebugButton(true);
+      console.log('🔧 Debug button should now be visible!');
+      setDebugTapCount(0);
+    }
+
+    // Reset count after 2 seconds
+    setTimeout(() => setDebugTapCount(0), 2000);
+  };
+
+  const handleClearDatabase = () => {
+    Alert.alert(
+      'Clear Database',
+      `This will delete all local transactions. Continue?\n\n(Debug mode: ${__DEV__})`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear', style: 'destructive', onPress: clearDatabase }
+      ]
+    );
+  };
+
+  const clearDatabase = async () => {
+    try {
+      const result = await clearLocalDatabase();
+      if (result.success) {
+        Alert.alert('Success', 'Database cleared successfully');
+        await loadTransactionSummary(); // Refresh the display
+        setShowDebugButton(false); // Hide the debug button
+      } else {
+        Alert.alert('Error', result.error || 'Failed to clear database');
+      }
+    } catch (error) {
+      Alert.alert('Error', `Failed to clear database: ${error.message}`);
+    }
+  };
+
   const handleSync = async () => {
     try {
       setSyncing(true);
@@ -128,8 +182,7 @@ const HomeScreen = () => {
 
       // Sync with server
       console.log('📤 Sending transactions to server:', {
-        count: transformedTransactions.length,
-        sample: transformedTransactions[0] // Log first transaction structure
+        count: transformedTransactions.length
       });
 
       const syncResult = await syncTransactions(transformedTransactions);
@@ -180,7 +233,16 @@ const HomeScreen = () => {
   return (
     <>
       <View style={styles.container}>
-      <Text style={styles.title}>Expense Tracker</Text>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.8}>
+            <Text style={styles.title}>Expense Tracker</Text>
+          </TouchableOpacity>
+          {showDebugButton && (
+            <TouchableOpacity onPress={handleClearDatabase} style={styles.debugButton}>
+              <Text style={styles.debugButtonText}>🗑️ Clear DB</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       
       <View style={styles.summaryContainer}>
         <View style={styles.summaryCard}>
@@ -230,6 +292,13 @@ const HomeScreen = () => {
           <Text style={styles.syncButtonText}>Sync with Server</Text>
         )}
       </TouchableOpacity>
+
+      {/* Temporary test button - always visible in dev mode */}
+      {__DEV__ && (
+        <TouchableOpacity style={styles.testDebugButton} onPress={handleClearDatabase}>
+          <Text style={styles.testDebugButtonText}>🧪 TEST: Clear Database</Text>
+        </TouchableOpacity>
+      )}
     </View>
 
       <TransactionForm
@@ -258,11 +327,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
+  header: {
+    position: 'relative',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 30,
     color: '#333',
   },
   summaryContainer: {
@@ -355,6 +428,32 @@ const styles = StyleSheet.create({
   syncButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  debugButton: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#FF3B30',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
+  debugButtonText: {
+    color: 'white',
+    fontSize: 12,
+  },
+  testDebugButton: {
+    backgroundColor: '#FF9500',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  testDebugButtonText: {
+    color: 'white',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

@@ -28,3 +28,6 @@ rq==1.15.1
 
 # Scheduling
 apscheduler==3.10.4
+
+# Firebase Admin SDK for custom tokens
+firebase-admin==6.2.0
